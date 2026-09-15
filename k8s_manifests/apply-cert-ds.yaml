@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: harbor-cert-installer
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: harbor-cert-installer
+  template:
+    metadata:
+      labels:
+        name: harbor-cert-installer
+    spec:
+      hostNetwork: true
+      hostPID: true
+      initContainers:
+        - name: setup-insecure-registry
+          image: alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              # 1. Tạo thư mục cấu hình containerd certs cho IP Harbor
+              mkdir -p /etc/containerd/certs.d/192.168.6.64/
+
+              # 2. Ghi file hosts.toml cấu hình bỏ qua kiểm tra TLS (skip_verify = true)
+              cat <<EOF > /etc/containerd/certs.d/192.168.6.64/hosts.toml
+              server = "https://192.168.6.64"
+
+              [host."https://192.168.6.64"]
+                capabilities = ["pull", "resolve"]
+                skip_verify = true
+              EOF
+
+              # 3. Kích hoạt restart containerd trên Host OS
+              nsenter -t 1 -m -u -n -i systemctl restart containerd
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: containerd-certs
+              mountPath: /etc/containerd/certs.d
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.6
+      volumes:
+        - name: containerd-certs
+          hostPath:
+            path: /etc/containerd/certs.d

@@ -1,0 +1,96 @@
+# ============================================================
+# game-service (Plinko) — Deployment + Service
+# Cùng pattern với account-service.yaml / transfer-service.yaml,
+# chỉ khác: port 8005, env HOUSE_USERNAME (tài khoản "nhà cái").
+# ============================================================
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: game-service # Tên Deployment, dùng để `kubectl get deploy game-service -n banking`
+  namespace: banking # Namespace riêng cho toàn bộ app banking-demo
+  labels:
+    app: game-service # Nhãn nhận diện, Service bên dưới sẽ dùng label này để chọn Pod
+spec:
+  replicas:
+    1 # Số bản sao Pod muốn chạy. Tăng lên 2-3 nếu cần chịu tải/HA
+    # (game-service không giữ state trong RAM nên scale ngang an toàn)
+  selector:
+    matchLabels:
+      app: game-service # Deployment quản lý đúng những Pod có label app=game-service
+  template: # "Khuôn" để tạo Pod — mọi Pod sinh ra đều theo spec bên dưới
+    metadata:
+      labels:
+        app: game-service # Label gắn lên từng Pod, phải khớp với selector ở trên
+    spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault # Áp seccomp profile mặc định của container runtime (giảm bề mặt tấn công)
+      imagePullSecrets:
+        - name:
+            harbor-registry # Secret loại docker-registry để kéo image private.
+            # Nếu chuyển sang Harbor: đổi tên này thành secret bạn tạo bằng
+            # `kubectl create secret docker-registry harbor-registry \
+            #    --docker-server=harbor.yourcompany.com \
+            #    --docker-username=... --docker-password=... -n banking`
+      containers:
+        - name: game-service
+          # Image build & push lên registry (xem hướng dẫn build/push Harbor ở tin nhắn trước).
+          # Đổi thành: harbor.yourcompany.com/banking-demo/game-service:<tag>
+          image: 192.168.6.64/banking/game-service:v1
+          imagePullPolicy:
+            Always # Luôn pull lại image mới nhất mỗi lần Pod khởi động
+            # (hợp lý khi dùng tag "latest"; nếu dùng tag version cố định
+            # có thể đổi thành IfNotPresent để tiết kiệm băng thông)
+          securityContext:
+            allowPrivilegeEscalation: false # Container không được leo thang quyền (vd: qua setuid binary)
+            capabilities:
+              drop: ["ALL"] # Bỏ hết Linux capabilities không cần thiết (least privilege)
+          ports:
+            - containerPort: 8005 # Cổng FastAPI/uvicorn lắng nghe bên trong container (khớp Dockerfile)
+          resources:
+            requests: # Tài nguyên tối thiểu scheduler đảm bảo cấp cho Pod
+              memory: "128Mi"
+              cpu: "100m" # 100m = 0.1 CPU core
+            limits: # Trần tối đa; vượt quá RAM limit → Pod bị OOMKilled
+              memory: "256Mi"
+              cpu: "300m"
+          env:
+            # Lấy từ Secret banking-db-secret (k8s/secret.yaml) thay vì hardcode, tránh lộ mật khẩu DB
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: banking-db-secret
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: banking-db-secret
+                  key: REDIS_URL
+            - name: CORS_ORIGINS
+              value: "http://localhost:3000" # Domain frontend được phép gọi API (đổi khi deploy thật)
+            - name: HOUSE_USERNAME
+              value:
+                "casino_house" # Username của tài khoản "nhà cái"/admin, service tự tạo
+                # nếu chưa tồn tại khi khởi động (xem _ensure_house_account)
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.monitoring.svc.cluster.local:4317" # Nơi gửi trace/metrics
+          readinessProbe: # K8s chỉ đưa Pod vào Service (nhận traffic) khi probe này pass
+            httpGet:
+              path: /health # Endpoint /health trong main.py (check DB + Redis)
+              port: 8005
+            initialDelaySeconds: 10 # Chờ 10s sau khi container start rồi mới bắt đầu kiểm tra
+            periodSeconds: 15 # Kiểm tra lại mỗi 15s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: game-service # DNS nội bộ cluster: game-service.banking.svc.cluster.local
+  namespace: banking
+spec:
+  selector:
+    app: game-service # Route traffic tới mọi Pod có label này (khớp Deployment ở trên)
+  ports:
+    - port: 8005 # Cổng Service lộ ra trong cluster (các service khác/Kong gọi qua cổng này)
+      targetPort: 8005 # Cổng thật trên container mà traffic được forward tới
+      name: http
