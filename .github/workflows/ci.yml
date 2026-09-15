@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }} #https://harbor.cmc-cloud-hcm1.cloud/
+  HARBOR_REGISTRY: ${{ variables.HARBOR_REGISTRY }} #https://harbor.cmc-cloud-hcm1.cloud/
 
 jobs:
   # ---------------------------------------------------------------------
