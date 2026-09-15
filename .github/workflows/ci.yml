@@ -1,0 +1,133 @@
+name: CI - Build & Push Images
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  HARBOR_REGISTRY: ${{ secrets.HARBOR_REGISTRY }} #https://harbor.cmc-cloud-hcm1.cloud/
+
+jobs:
+  # ---------------------------------------------------------------------
+  # 1) Detect which services actually changed so we don't rebuild all 6
+  #    images on every push.
+  # ---------------------------------------------------------------------
+  detect:
+    runs-on: ubuntu-latest # pure git diff, no registry access needed here
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+            account-service:
+              - 'services/account-service/**'
+            transfer-service:
+              - 'services/transfer-service/**'
+            game-service:
+              - 'services/game-service/**'
+            notification-service:
+              - 'services/notification-service/**'
+            frontend:
+              - 'frontend/**'
+            # TODO: confirm whether services actually import shared code from
+            # repo root (their Dockerfile build context is ".", not their own
+            # folder). If they do, add those root paths here so a shared-code
+            # change rebuilds every service, e.g.:
+            # shared:
+            #   - 'shared/**'
+            #   - 'requirements.txt'
+
+      - name: Build matrix of changed services
+        id: set-matrix
+        run: |
+          services=()
+          [[ "${{ steps.filter.outputs.auth-service }}" == "true" ]] && services+=("auth-service")
+          [[ "${{ steps.filter.outputs.account-service }}" == "true" ]] && services+=("account-service")
+          [[ "${{ steps.filter.outputs.transfer-service }}" == "true" ]] && services+=("transfer-service")
+          [[ "${{ steps.filter.outputs.game-service }}" == "true" ]] && services+=("game-service")
+          [[ "${{ steps.filter.outputs.notification-service }}" == "true" ]] && services+=("notification-service")
+
+          if [ ${#services[@]} -eq 0 ]; then
+            echo "matrix=[]" >> "$GITHUB_OUTPUT"
+          else
+            json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+            echo "matrix=$json" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------------
+  # 2) Build & push only the services that changed.
+  #    Dockerfile: services/<name>/Dockerfile, build context: repo root
+  #    (matches the "context: ." used in docker-compose.yml).
+  # ---------------------------------------------------------------------
+  build-services:
+    needs: detect
+    if: needs.detect.outputs.matrix != '[]'
+    runs-on: self-hosted # must reach Harbor on the internal network
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Set image tag
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ matrix.service }}:${{ steps.vars.outputs.sha_short }}
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ matrix.service }}:latest
+          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ matrix.service }}:buildcache
+          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ matrix.service }}:buildcache,mode=max
+
+  # ---------------------------------------------------------------------
+  # 3) Frontend has its own build context (./frontend), handled separately.
+  # ---------------------------------------------------------------------
+  build-frontend:
+    needs: detect
+    if: needs.detect.outputs.frontend == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.HARBOR_REGISTRY }}
+          username: ${{ secrets.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_PASSWORD }}
+
+      - name: Set image tag
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:${{ steps.vars.outputs.sha_short }}
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
