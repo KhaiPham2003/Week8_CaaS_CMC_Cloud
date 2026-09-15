@@ -76,7 +76,7 @@ export default function Login({ onOk, onGoRegister }) {
           </div>
         )}
 
-        <div className="mt-5 text-xs text-slate-400">© CMC BANKING</div>
+        <div className="mt-5 text-xs text-slate-400">© CMC BANKING v.01</div>
       </div>
     </div>
   );
