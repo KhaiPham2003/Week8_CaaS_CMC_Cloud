@@ -129,5 +129,4 @@ jobs:
           context: ./frontend
           push: true
           tags: |
-            tags: ${{ vars.HARBOR_REGISTRY }}/banking/frontend:${{ github.sha }}
-            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
+            ${{ vars.HARBOR_REGISTRY }}/banking/frontend:latest
