@@ -14,25 +14,39 @@ spec:
     spec:
       hostNetwork: true
       hostPID: true
+      tolerations:
+        - operator: Exists # chấp nhận mọi taint, kể cả control-plane, để chạy trên toàn bộ 6 node
       initContainers:
-        - name: setup-insecure-registry
+        - name: setup-harbor-registry
           image: alpine
           command: ["/bin/sh", "-c"]
           args:
             - |
-              # 1. Tạo thư mục cấu hình containerd certs cho IP Harbor
-              mkdir -p /etc/containerd/certs.d/192.168.6.64/
+              HARBOR_HOST="harbor.cmc-cloud-hcm1.cloud"
+              HARBOR_IP="192.168.6.64"
 
-              # 2. Ghi file hosts.toml cấu hình bỏ qua kiểm tra TLS (skip_verify = true)
-              cat <<EOF > /etc/containerd/certs.d/192.168.6.64/hosts.toml
-              server = "https://192.168.6.64"
+              # 1. Đảm bảo node resolve được domain Harbor về đúng IP nội bộ
+              #    (Harbor không có public IP nên domain này không public-resolvable)
+              nsenter -t 1 -m -u -n -i sh -c "
+                grep -qxF '${HARBOR_IP} ${HARBOR_HOST}' /etc/hosts || \
+                echo '${HARBOR_IP} ${HARBOR_HOST}' >> /etc/hosts
+              "
 
-              [host."https://192.168.6.64"]
+              # 2. Xoá config theo IP cũ (skip_verify) nếu còn tồn tại từ lần deploy trước
+              rm -rf /etc/containerd/certs.d/${HARBOR_IP}
+
+              # 3. Tạo cấu hình containerd theo DOMAIN, dùng TLS thật (Let's Encrypt)
+              #    -> không cần skip_verify vì cert được CA công khai ký, containerd
+              #    tự verify qua CA bundle mặc định của host.
+              mkdir -p /etc/containerd/certs.d/${HARBOR_HOST}
+              cat <<EOF > /etc/containerd/certs.d/${HARBOR_HOST}/hosts.toml
+              server = "https://${HARBOR_HOST}"
+
+              [host."https://${HARBOR_HOST}"]
                 capabilities = ["pull", "resolve"]
-                skip_verify = true
               EOF
 
-              # 3. Kích hoạt restart containerd trên Host OS
+              # 4. Áp dụng thay đổi
               nsenter -t 1 -m -u -n -i systemctl restart containerd
           securityContext:
             privileged: true
