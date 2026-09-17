@@ -9,8 +9,8 @@ stringData:
     {
       "auths": {
         "192.168.6.64": {
-          "username": "YOUR_HARBOR_USERNAME",
-          "password": "YOUR_HARBOR_PASSWORD"
+          "username": "admin",
+          "password": "Group-hcm-01"
         }
       }
     }
