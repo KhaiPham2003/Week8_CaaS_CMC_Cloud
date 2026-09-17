@@ -1,2 +1,6 @@
 secret.yaml
 .DS_Store
+tls.key
+tls.crt
+harbor-registry.yaml
+*.pem

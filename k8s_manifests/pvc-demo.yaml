@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demo-pvc
+  namespace: banking
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: highio
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-demo-pod
+  namespace: banking
+spec:
+  containers:
+    - name: nginx
+      image: nginx:alpine
+      volumeMounts:
+        - mountPath: "/usr/share/nginx/html"
+          name: demo-storage
+  volumes:
+    - name: demo-storage
+      persistentVolumeClaim:
+        claimName: demo-pvc

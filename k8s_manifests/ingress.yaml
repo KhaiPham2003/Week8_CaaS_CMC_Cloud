@@ -6,6 +6,10 @@ metadata:
   namespace: banking
 spec:
   ingressClassName: haproxy
+  tls:
+    - hosts:
+        - cmc-cloud-hcm1.cloud
+      secretName: cloudflare-cert
   rules:
     - host: cmc-cloud-hcm1.cloud
       http:
