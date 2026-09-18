@@ -1,0 +1,2684 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiến Trúc Hạ Tầng Clouddit - CMC Cloud HCM1</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* surfaces */
+      --paper: #080c14;
+      /* Deep midnight black background */
+      --panel: #111827;
+      /* Slate-900 for slide panels */
+      --panel2: #1f2937;
+      /* Slate-800 for tab bars */
+      --code-bg: #030712;
+      /* Deep black code editor background */
+      --line: #1e293b;
+      /* Slate-800 borders */
+      --line2: #334155;
+      /* Slate-700 borders */
+
+      /* ink */
+      --ink: #f8fafc;
+      /* Clean white headings */
+      --ink2: #cbd5e1;
+      /* Slate-300 body text */
+      --ink3: #94a3b8;
+      /* Slate-400 muted text */
+      --ink4: #475569;
+      /* Slate-600 faint text */
+
+      /* accents */
+      --green: #00e5ff;
+      /* Vibrant Neon CMC Cyan Blue */
+      --green-d: #0077d6;
+      /* Deeper CMC Blue */
+      --green-bg: rgba(0, 229, 255, 0.08);
+      /* Glow backdrop */
+      --cyan: #38bdf8;
+      /* Cyber Sky Blue */
+      --cyan-bg: rgba(56, 189, 248, 0.08);
+      --amber: #f59e0b;
+      /* Neon Orange/Amber */
+      --amber-bg: rgba(245, 158, 11, 0.08);
+      --red: #ff2a5f;
+      /* Cyber Neon Pink/Red */
+      --red-bg: rgba(255, 42, 95, 0.08);
+
+      /* code syntax styling */
+      --cm: #64748b;
+      /* comment */
+      --kw: #f472b6;
+      /* keyword */
+      --cmd: #38bdf8;
+      /* command name */
+      --str: #34d399;
+      /* string */
+      --var: #fb923c;
+      /* variable */
+      --flag: #fbbf24;
+      /* flag / option */
+      --num: #38bdf8;
+      /* number */
+      --fn: #c084fc;
+      /* function name */
+      --out: #94a3b8;
+      /* program output */
+      --prompt: #475569;
+      /* prompt */
+
+      --mono: 'JetBrains Mono', monospace;
+      --disp: 'Space Grotesk', sans-serif;
+      --sans: 'Inter', sans-serif;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--paper);
+      color: var(--ink2);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Cyber 3D grid and particle background container */
+    #cyber-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: var(--paper);
+      overflow: hidden;
+      perspective: 300px;
+    }
+
+    /* Mouse-Reactive Neon Aura */
+    #mouse-glow {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%),
+          rgba(0, 229, 255, 0.08),
+          rgba(255, 42, 95, 0.04) 40%,
+          transparent 80%);
+      transition: background 0.1s ease;
+    }
+
+    #cyber-bg::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      top: -50%;
+      left: -50%;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+      background-size: 50px 50px;
+      transform: rotateX(65deg);
+      animation: grid-scroll 35s linear infinite;
+      transform-origin: center;
+    }
+
+    @keyframes grid-scroll {
+      0% {
+        background-position: 0 0;
+      }
+
+      100% {
+        background-position: 0 1000px;
+      }
+    }
+
+    .particle {
+      position: absolute;
+      background: var(--color, var(--green));
+      box-shadow: 0 0 8px var(--color, var(--green));
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      animation: float-particle var(--duration) ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
+
+    @keyframes float-particle {
+      0% {
+        transform: translateY(105vh) translateX(0);
+        opacity: 0;
+      }
+
+      20% {
+        opacity: 0.6;
+      }
+
+      80% {
+        opacity: 0.6;
+      }
+
+      100% {
+        transform: translateY(-10vh) translateX(var(--drift, 50px));
+        opacity: 0;
+      }
+    }
+
+    #progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+      transition: width 0.35s ease;
+      z-index: 999;
+    }
+
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 32px 48px 90px;
+      display: flex;
+      flex-direction: column;
+      padding: 40px 60px 45px;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transform: scale(0.985) translateY(10px);
+      transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+        transform 0.38s cubic-bezier(0.25, 1, 0.5, 1),
+        visibility 0.35s ease;
+      background: rgba(8, 12, 20, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 229, 255, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.02);
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+      transform: scale(1) translateY(0);
+    }
+
+    /* Sci-Fi HUD Decals */
+    .slide::before,
+    .slide::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+      border-color: var(--cyan);
+      border-style: solid;
+      opacity: 0.6;
+      transition: border-color 0.28s;
+    }
+
+    .slide::before {
+      top: -1px;
+      left: -1px;
+      border-width: 3px 0 0 3px;
+      border-top-left-radius: 8px;
+    }
+
+    .slide::after {
+      bottom: -1px;
+      right: -1px;
+      border-width: 0 3px 3px 0;
+      border-bottom-right-radius: 8px;
+    }
+
+    /* Automatic Accent Colors based on Eyebrow Labels using CSS :has() */
+    .slide:has(.lbl.am)::before,
+    .slide:has(.lbl.am)::after {
+      border-color: var(--amber);
+    }
+
+    .slide:has(.lbl.re)::before,
+    .slide:has(.lbl.re)::after {
+      border-color: var(--red);
+    }
+
+    .slide:has(.lbl.cy)::before,
+    .slide:has(.lbl.cy)::after {
+      border-color: var(--cyan);
+    }
+
+    .slide:has(.lbl:not(.am):not(.re):not(.cy))::before,
+    .slide:has(.lbl:not(.am):not(.re):not(.cy))::after {
+      border-color: var(--green);
+    }
+
+    /* eyebrow label */
+    .lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 500;
+    }
+
+    .lbl::before {
+      content: '#';
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .lbl.re::before {
+      color: var(--red);
+    }
+
+    .lbl.am::before {
+      color: var(--amber);
+    }
+
+    .lbl.cy::before {
+      color: var(--cyan);
+    }
+
+    h1 {
+      font-family: var(--disp);
+      font-size: 54px;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    h2 {
+      font-family: var(--disp);
+      font-size: 38px;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+    }
+
+    .g {
+      color: var(--green);
+    }
+
+    .cyc {
+      color: var(--cyan);
+    }
+
+    .am {
+      color: var(--amber);
+    }
+
+    .re {
+      color: var(--red);
+    }
+
+    /* code panel styled like an editor file tab */
+    .code {
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--line2);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.7;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .code:hover {
+      border-color: var(--green);
+      box-shadow: 0 8px 24px rgba(0, 229, 255, 0.08);
+    }
+
+    .code .bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--line2);
+      font-size: 11px;
+      color: var(--ink3);
+      font-weight: 500;
+    }
+
+    .code .bar .fname {
+      color: var(--ink2);
+      font-weight: 700;
+    }
+
+    .code .bar .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+    }
+
+    .code .body-c {
+      padding: 12px 16px;
+    }
+
+    .code.sm {
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    /* syntax spans */
+    .cm {
+      color: var(--cm);
+      font-style: italic;
+    }
+
+    .kw {
+      color: var(--kw);
+      font-weight: 500;
+    }
+
+    .cmd {
+      color: var(--cmd);
+    }
+
+    .str {
+      color: var(--str);
+    }
+
+    .var {
+      color: var(--var);
+    }
+
+    .flag {
+      color: var(--flag);
+    }
+
+    .num {
+      color: var(--num);
+    }
+
+    .fn {
+      color: var(--fn);
+      font-weight: 500;
+    }
+
+    .out {
+      color: var(--out);
+    }
+
+    .pr {
+      color: var(--prompt);
+    }
+
+    .card {
+      background: rgba(17, 24, 39, 0.45);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 229, 255, 0.08);
+      border-radius: 10px;
+      padding: 17px 21px;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 8px 24px rgba(0, 229, 255, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .card.panel {
+      background: rgba(17, 24, 39, 0.65);
+      border-color: rgba(0, 229, 255, 0.12);
+    }
+
+    .ctitle {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink3);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 11px;
+      font-weight: 600;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .grid3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 15px;
+    }
+
+    .note {
+      border-left: 3px solid;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .note strong {
+      font-weight: 700;
+    }
+
+    .noteg {
+      border-color: var(--green);
+      background: var(--green-bg);
+      color: var(--green-d);
+    }
+
+    .notea {
+      border-color: var(--amber);
+      background: var(--amber-bg);
+      color: #8a4208;
+    }
+
+    .noter {
+      border-color: var(--red);
+      background: var(--red-bg);
+      color: #9a2019;
+    }
+
+    .notec {
+      border-color: var(--cyan);
+      background: var(--cyan-bg);
+      color: #0a557d;
+    }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin: 2px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    .tg {
+      border-color: rgba(0, 229, 255, 0.25);
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .ta {
+      border-color: rgba(245, 158, 11, 0.25);
+      background: var(--amber-bg);
+      color: var(--amber);
+    }
+
+    .tr {
+      border-color: rgba(255, 42, 95, 0.25);
+      background: var(--red-bg);
+      color: var(--red);
+    }
+
+    .tc {
+      border-color: rgba(56, 189, 248, 0.25);
+      background: var(--cyan-bg);
+      color: var(--cyan);
+    }
+
+    .body {
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--ink2);
+    }
+
+    .body strong {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .ft {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14.5px;
+    }
+
+    .ft th {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 8px 11px;
+      text-align: left;
+      border-bottom: 2px solid var(--line2);
+    }
+
+    .ft td {
+      padding: 9px 11px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink2);
+    }
+
+    .ft tr:last-child td {
+      border-bottom: none;
+    }
+
+    .ft .mono {
+      font-family: var(--mono);
+      font-size: 13.5px;
+    }
+
+    code.ic {
+      font-family: var(--mono);
+      font-size: 13px;
+      background: var(--panel2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--ink);
+    }
+
+    /* flow nodes */
+    .fnode {
+      border-radius: 8px;
+      padding: 11px 13px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid;
+      line-height: 1.35;
+    }
+
+    .fnode .sub {
+      display: block;
+      font-size: 10.5px;
+      font-weight: 400;
+      opacity: 0.8;
+      margin-top: 3px;
+    }
+
+    .farr {
+      color: var(--ink4);
+      font-size: 18px;
+      padding: 0 3px;
+      flex-shrink: 0;
+    }
+
+    .fng {
+      background: var(--green-bg);
+      border-color: rgba(0, 229, 255, 0.25);
+      color: var(--green);
+    }
+
+    .fna {
+      background: var(--amber-bg);
+      border-color: rgba(245, 158, 11, 0.25);
+      color: var(--amber);
+    }
+
+    .fnc {
+      background: var(--cyan-bg);
+      border-color: rgba(56, 189, 248, 0.25);
+      color: var(--cyan);
+    }
+
+    .fnr {
+      background: var(--red-bg);
+      border-color: rgba(255, 42, 95, 0.25);
+      color: var(--red);
+    }
+
+    .fnd {
+      background: var(--panel);
+      border-color: var(--line2);
+      color: var(--ink2);
+    }
+
+    /* scenario slide (pain points) */
+    .pain {
+      display: flex;
+      gap: 13px;
+      align-items: flex-start;
+      padding: 11px 15px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--paper);
+      margin-bottom: 10px;
+    }
+
+    .pain .clock {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--red);
+      flex-shrink: 0;
+      min-width: 68px;
+    }
+
+    .pain .txt {
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--ink2);
+    }
+
+    .pain .txt b {
+      color: var(--ink);
+    }
+
+    /* NAV */
+    .nav {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      background: var(--paper);
+      border: 1px solid var(--line2);
+      border-radius: 40px;
+      padding: 8px 16px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 229, 255, 0.15);
+    }
+
+    .nbtn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--ink3);
+      font-size: 15px;
+      padding: 4px 7px;
+      border-radius: 6px;
+      transition: color 0.2s;
+      font-family: var(--mono);
+    }
+
+    .nbtn:hover {
+      color: var(--green);
+    }
+
+    .ncnt {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      min-width: 46px;
+      text-align: center;
+    }
+
+    .dots {
+      display: flex;
+      gap: 5px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--line2);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dot.on {
+      background: var(--green);
+      transform: scale(1.4);
+    }
+
+    .kbhint {
+      position: fixed;
+      bottom: 26px;
+      right: 34px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink4);
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 9px;
+      height: 18px;
+      background: var(--green);
+      animation: cblink 1s step-end infinite;
+      vertical-align: middle;
+      margin-left: 3px;
+    }
+
+    @keyframes cblink {
+      50% {
+        opacity: 0;
+      }
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink3);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+      font-weight: 500;
+    }
+
+    .rule {
+      width: 54px;
+      height: 4px;
+      background: var(--green);
+      border-radius: 2px;
+      margin: 26px 0;
+    }
+
+    /* 3-tier animated data flow */
+    .flow-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      height: 330px;
+      position: relative;
+      background: rgba(17, 24, 39, 0.4);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .flow-node-box {
+      background: var(--panel);
+      border: 1px solid var(--line2);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .flow-node-box:hover {
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .flow-node-box h5 {
+      font-family: var(--disp);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+
+    .flow-node-box p {
+      font-size: 11px;
+      color: var(--ink2);
+      line-height: 1.5;
+    }
+
+    .flow-line-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* BOM & Cost Presentation Styles */
+    .bom-container {
+      display: grid;
+      grid-template-columns: 1.45fr 1fr;
+      gap: 20px;
+      flex: 1;
+      min-height: 0;
+      margin-top: 4px;
+    }
+
+    .bom-table-wrapper {
+      background: rgba(3, 7, 18, 0.75);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--line2);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .bom-scroll {
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 2px;
+    }
+
+    .bom-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .bom-scroll::-webkit-scrollbar-track {
+      background: rgba(17, 24, 39, 0.5);
+    }
+
+    .bom-scroll::-webkit-scrollbar-thumb {
+      background: var(--cyan);
+      border-radius: 4px;
+    }
+
+    .bom-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+
+    .bom-tbl thead th {
+      position: sticky;
+      top: 0;
+      background: #0d1527;
+      z-index: 2;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--ink3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 9px 12px;
+      border-bottom: 2px solid var(--line2);
+    }
+
+    .bom-tier-row td {
+      background: rgba(30, 41, 59, 0.7);
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .bom-item-row td {
+      padding: 4px 10px;
+      border-bottom: 1px solid rgba(30, 41, 59, 0.45);
+      color: var(--ink2);
+      font-size: 11.5px;
+      vertical-align: middle;
+    }
+
+    .bom-item-row:hover {
+      background: rgba(0, 229, 255, 0.05);
+    }
+
+    .bom-item-name {
+      font-weight: 600;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.2;
+    }
+
+    .bom-item-spec {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink3);
+    }
+
+    .bom-price {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--green);
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .bom-footer-total {
+      background: rgba(0, 229, 255, 0.08);
+      border-top: 2px solid var(--green);
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--mono);
+    }
+
+    .bom-side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .bom-kpi-card {
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.8), rgba(8, 12, 20, 0.9));
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 12px;
+      padding: 11px 15px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 229, 255, 0.08);
+    }
+
+    .bom-kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+    }
+
+    .bom-kpi-val {
+      font-family: var(--disp);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--green);
+      line-height: 1.05;
+      margin: 2px 0 5px;
+    }
+
+    .bom-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    /* ══ SLIDE 23: CAPACITY & TARGET AUDIENCE ══ */
+    .cap-container {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 18px;
+      flex: 1;
+      min-height: 0;
+      align-items: stretch;
+    }
+
+    .cap-metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .cap-stat-box {
+      background: linear-gradient(135deg, rgba(17, 24, 39, 0.75), rgba(8, 12, 20, 0.9));
+      border: 1px solid rgba(0, 229, 255, 0.16);
+      border-radius: 10px;
+      padding: 11px 13px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+    }
+
+    .cap-stat-box:hover {
+      border-color: var(--cyan);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 229, 255, 0.1);
+    }
+
+    .cap-stat-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .cap-stat-box.c-green::before {
+      background: var(--green);
+    }
+
+    .cap-stat-box.c-cyan::before {
+      background: var(--cyan);
+    }
+
+    .cap-stat-box.c-amber::before {
+      background: var(--amber);
+    }
+
+    .cap-stat-box.c-purple::before {
+      background: #c084fc;
+    }
+
+    .cap-stat-title {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      color: var(--ink3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cap-stat-val {
+      font-family: var(--disp);
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 3px;
+    }
+
+    .cap-stat-sub {
+      font-size: 11px;
+      color: var(--ink2);
+      line-height: 1.4;
+    }
+
+    .cap-tech-box {
+      background: rgba(13, 20, 33, 0.7);
+      border: 1px solid rgba(0, 229, 255, 0.14);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .cap-tech-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--ink2);
+    }
+
+    .cap-tech-item b {
+      color: var(--ink);
+    }
+
+    .cap-tech-bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    .fit-column {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      min-height: 0;
+    }
+
+    .fit-card {
+      background: rgba(17, 24, 39, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 13px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+
+    .fit-card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 6px 18px rgba(0, 229, 255, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .fit-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .fit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .fb-star {
+      background: rgba(0, 229, 255, 0.15);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 229, 255, 0.35);
+    }
+
+    .fb-sme {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+
+    .fb-ent {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .fit-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .fit-body {
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: var(--ink2);
+    }
+
+    .fit-body strong {
+      color: var(--ink);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cyber-bg">
+    <div id="mouse-glow"></div>
+  </div>
+  <div id="progress"></div>
+  <div class="deck">
+
+    <!-- ══ S1 TITLE ══ -->
+    <div class="slide active" id="s1">
+      <div
+        style="margin-top:auto;margin-bottom:auto;display:flex;align-items:center;justify-content:space-between;gap:50px;width:100%;height:100%;">
+        <div style="flex:1.2;text-align:left;">
+          <div class="eyebrow">CMC CLOUD · SOLUTIONS ARCHITECTURE · CLOUDDIT DEPLOYMENT</div>
+          <h1>Triển Khai Hạ Tầng<br>Ứng Dụng <span class="g">Clouddit</span></h1>
+          <div class="rule"></div>
+          <p style="font-size:18px;color:var(--ink2);font-weight:400;line-height:1.65;margin-bottom:24px;">Kiến trúc
+            phân tầng mạng cô lập bảo mật cao phối hợp hệ thống đa cơ sở dữ liệu (PostgreSQL, MongoDB, Redis) chịu tải
+            ngang trên cụm CMC Cloud HCM1.</p>
+          <div style="font-family:var(--mono);font-size:14px;color:var(--green-d);margin-top:26px;">
+            <span class="pr">$ </span>./deploy-clouddit.sh --prod<span class="cursor"></span>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:26px;font-family:var(--mono);font-size:12px;color:var(--ink3);">
+            <span>22 slides</span><span style="color:var(--line2);"> /</span><span>Problem → 3-Tier Flow → Security →
+              pfSense Firewall → Databases → Troubleshooting → Backup &amp; DR → BOM &amp; Cost → Pitch → Roadmap</span>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center;align-items:center;height:100%;">
+          <img src="./Truyen-thong-thang-8-50.jpg" alt="CMC Logo"
+            style="width:100%;max-height:480px;object-fit:cover;border-radius:12px;border:1px solid var(--line2);box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 229, 255, 0.15);">
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S2 CLIENT PROBLEM ══ -->
+    <div class="slide" id="s2">
+      <div class="lbl am">Bài toán khách hàng</div>
+      <h2 style="margin-bottom:12px;">Bài toán <span class="am">Khởi tạo hệ thống Clouddit</span></h2>
+      <p class="body" style="margin-bottom:20px;max-width:920px;">Khách hàng muốn tự thiết lập và vận hành một ứng dụng
+        mạng xã hội Clouddit (Reddit clone) từ mã nguồn có sẵn, đồng thời yêu cầu một kiến trúc phân tách rõ ràng để tối
+        ưu hóa tài nguyên:</p>
+      <div class="grid2" style="flex:1;align-items:start;gap:20px;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="note notea">
+            <strong>Yêu cầu cơ sở dữ liệu</strong>: Khách hàng muốn dùng <strong>PostgreSQL</strong> để quản lý toàn bộ
+            dữ liệu nghiệp vụ quan hệ cốt lõi (User, Post, Comment, Follow...) nhằm bảo đảm tính toàn vẹn tuyệt đối.
+          </div>
+          <div class="note noteg">
+            <strong>Yêu cầu ghi log hoạt động</strong>: Khách hàng muốn lưu trữ toàn bộ lịch sử thông báo hoạt động
+            người dùng (upvotes, downvotes, comment replies...) vào <strong>MongoDB</strong> để dễ dàng truy xuất và mở
+            rộng linh hoạt.
+          </div>
+          <div class="note notec">
+            <strong>Yêu cầu real-time &amp; caching</strong>: Khách hàng cần hệ thống phản hồi số lượng chưa xem tức
+            thời bằng <strong>Redis Cache</strong> và đồng bộ WebSocket real-time mà không lo thắt nút cổ chai.
+          </div>
+        </div>
+        <div class="card panel" style="display:flex;flex-direction:column;gap:10px;">
+          <div class="ctitle">Hiện trạng &amp; Rủi ro ban đầu:</div>
+          <p style="font-size:14px;line-height:1.75;color:var(--ink2);">
+            - <strong>Tắc nghẽn cơ sở dữ liệu</strong> nếu gộp chung toàn bộ ghi log hoạt động và đếm số lượng chưa đọc
+            vào một database Postgres duy nhất.<br>
+            - <strong>Mất đồng bộ WebSocket</strong>: Khi cụm backend chạy nhiều node, thông báo đẩy thời gian thực sẽ
+            bị phân tán và thất thoát nếu không có cơ chế broadcast đồng bộ.<br>
+            - <strong>Vấn đề bảo mật</strong>: Các máy chủ database nếu không được cô lập trong subnet mạng riêng sẽ dễ
+            dàng bị scan cổng và tấn công từ Internet.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S3 (CŨ S4) MULTI-DB DESIGN ══ -->
+    <div class="slide" id="s3">
+      <div class="lbl g">Architecture Design</div>
+      <h2 style="margin-bottom:12px;">Kiến trúc <span class="g">Đa cơ sở dữ liệu</span> (Polyglot Persistence)</h2>
+      <p class="body" style="margin-bottom:20px;max-width:920px;">Sử dụng đúng công cụ cho đúng nhiệm vụ (Right tool for
+        the right job) giúp tối ưu hóa tài nguyên và đảm bảo hiệu năng tối đa cho hệ thống:</p>
+
+      <div class="grid3" style="flex:1;">
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tc">SQL Core</span><span class="tag tg">ACID</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg"
+              alt="PostgreSQL" style="width:24px;height:24px;">
+            <h4 style="font-family:var(--disp);font-size:18px;font-weight:700;color:var(--ink);margin:0;">PostgreSQL
+            </h4>
+          </div>
+          <p style="font-size:13px;line-height:1.7;color:var(--ink2);">
+            Lưu trữ dữ liệu quan hệ cốt lõi: <code>users</code>, <code>posts</code>, <code>comments</code>,
+            <code>follows</code>, <code>community_members</code>.<br><br>
+            Đảm bảo tính toàn vẹn dữ liệu chặt chẽ và sử dụng cascade foreign keys để tự động dọn dẹp liên kết.
+          </p>
+        </div>
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag ta">NoSQL</span><span class="tag tr">TTL Index</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg" alt="MongoDB"
+              style="width:24px;height:24px;">
+            <h4 style="font-family:var(--disp);font-size:18px;font-weight:700;color:var(--ink);margin:0;">MongoDB</h4>
+          </div>
+          <p style="font-size:13px;line-height:1.7;color:var(--ink2);">
+            Lưu luồng log thông báo (Notifications) như: <em>upvoted, commented, followed</em>.<br><br>
+            Hỗ trợ schema linh hoạt dạng tài liệu JSON, ghi tải cực nhanh và tự động dọn dẹp các thông báo cũ sau 30
+            ngày.
+          </p>
+        </div>
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tg">In-Memory</span><span class="tag tc">Pub/Sub</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" alt="Redis"
+              style="width:24px;height:24px;">
+            <h4 style="font-family:var(--disp);font-size:18px;font-weight:700;color:var(--ink);margin:0;">Redis</h4>
+          </div>
+          <p style="font-size:13px;line-height:1.7;color:var(--ink2);">
+            Đảm nhận lưu đệm (Caching) số lượt chưa đọc và đóng vai trò làm broker truyền tin trung gian
+            (Pub/Sub).<br><br>
+            Tốc độ phản hồi cực cao dưới 1ms và đồng bộ real-time WebSocket giữa cụm backend đa máy chủ.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S4 (CŨ S3) WHY — THE PROBLEM ══ -->
+    <div class="slide" id="s4">
+      <div class="lbl re">Why this matters</div>
+      <h2 style="margin-bottom:8px;">Tại sao lại là <span class="re">kiến trúc này</span>?</h2>
+      <p class="body" style="margin-bottom:18px;max-width:920px;">Một mạng xã hội chịu tải cao như Clouddit (Reddit
+        clone) có đặc thù dữ liệu tương tác cực lớn. Nếu gộp tất cả tác vụ vào duy nhất 1 database, hệ thống sẽ sập
+        nghiêm trọng vào giờ cao điểm.</p>
+
+      <div class="grid2" style="flex:1;align-items:start;gap:20px;">
+        <div style="display:flex;flex-direction:column;">
+          <div class="ctitle" style="color:var(--red); margin-bottom:8px;">Thảm họa khi dùng 1 database (PostgreSQL)
+          </div>
+          <div class="pain">
+            <div class="clock">03:12 AM</div>
+            <div class="txt">Log thông báo tăng vọt làm nghẽn I/O Postgres. <b>Các tác vụ quan hệ (Post/Comment) bị
+                nghẽn nút cổ chai.</b></div>
+          </div>
+          <div class="pain">
+            <div class="clock">03:13 AM</div>
+            <div class="txt">Client liên tục gửi request đếm số lượng thông báo chưa đọc. CPU Postgres đạt 100%, sập kết
+              nối ứng
+              dụng.</div>
+          </div>
+          <div class="pain">
+            <div class="clock">03:20 AM</div>
+            <div class="txt">Socket.io chạy cụm Backend bị mất đồng bộ do load balancer chia phiên, user không nhận được
+              thông báo đẩy.</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="card panel" style="padding: 20px;">
+            <div class="ctitle" style="color:var(--green); margin-bottom:8px;">Cách thiết kế của chúng tôi giải quyết
+              bài toán</div>
+            <p style="font-size:14.5px;line-height:1.75;color:var(--ink2);">
+              - <strong>Tách biệt lưu trữ</strong>: PostgreSQL chỉ tập trung xử lý dữ liệu lõi sạch sẽ. MongoDB gánh
+              toàn bộ tải ghi log thông báo phi cấu trúc.<br>
+              - <strong>Triệt tiêu 95% truy vấn đếm thông báo</strong>: Nhờ Redis Cache lưu trữ
+              <code>unread_count</code> với cơ chế INCR trực tiếp trên RAM, giải phóng hoàn toàn gánh nặng COUNT(*) cho
+              Database.<br>
+              - <strong>Đồng bộ ngang bền vững</strong>: Dùng Redis Pub/Sub kết nối toàn bộ WebSocket instances, cho
+              phép Auto Scaling thoải mái.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S5 3-TIER DATA FLOW ══ -->
+    <div class="slide" id="s5">
+      <div class="lbl cy">Interactive Data Flow</div>
+      <h2 style="margin-bottom:12px;">Cấu trúc 3 lớp: <span class="cyc">Luồng Request từ Người dùng đến DB</span></h2>
+      <p class="body" style="margin-bottom:10px;">Mô hình tương tác thời gian thực và ghi nhận dữ liệu của Clouddit chạy
+        trên VPC CMC Cloud:</p>
+
+      <div class="flow-container">
+        <!-- SVG Canvas for connection lines -->
+        <svg class="flow-line-svg" viewBox="0 0 1000 320" preserveAspectRatio="none">
+          <defs>
+            <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- Static background paths -->
+          <path d="M 230 160 L 300 160" stroke="var(--line2)" stroke-width="2" fill="none" />
+          <path d="M 480 160 L 550 160" stroke="var(--line2)" stroke-width="2" fill="none" />
+          <path d="M 730 160 L 800 62" stroke="var(--line2)" stroke-width="2" fill="none" />
+          <path d="M 730 160 L 800 158" stroke="var(--line2)" stroke-width="2" fill="none" />
+          <path d="M 730 160 L 800 254" stroke="var(--line2)" stroke-width="2" fill="none" />
+
+          <!-- Dynamic glowing animated paths -->
+          <path d="M 230 160 L 300 160" stroke="#00e5ff" stroke-width="2" fill="none" class="pulse-dot"
+            filter="url(#glow-cyan)" />
+          <path d="M 480 160 L 550 160" stroke="#38bdf8" stroke-width="2" fill="none" class="pulse-dot"
+            filter="url(#glow-cyan)" />
+          <path d="M 730 160 L 800 62" stroke="#38bdf8" stroke-width="2" fill="none" class="pulse-dot"
+            filter="url(#glow-cyan)" />
+          <path d="M 730 160 L 800 158" stroke="#34d399" stroke-width="2" fill="none" class="pulse-dot"
+            filter="url(#glow-green)" />
+          <path d="M 730 160 L 800 254" stroke="#ff2a5f" stroke-width="2" fill="none" class="pulse-dot"
+            filter="url(#glow-purple)" />
+        </svg>
+
+        <!-- HTML Overlay Boxes -->
+        <div
+          style="position:absolute; left:5%; top:30%; width:18%; display:flex; flex-direction:column; gap:15px; z-index:10;">
+          <div class="flow-node-box" style="border-color: rgba(0, 229, 255, 0.4);">
+            <h5>💻 Trình Duyệt Web</h5>
+            <p>React/Next.js UI</p>
+            <p>Giao diện Clouddit</p>
+          </div>
+        </div>
+
+        <div
+          style="position:absolute; left:30%; top:30%; width:18%; display:flex; flex-direction:column; gap:15px; z-index:10;">
+          <div class="flow-node-box" style="border-color: rgba(56, 189, 248, 0.4);">
+            <h5>🌐 Nginx Gateway</h5>
+            <p>Public Subnet (DMZ)</p>
+            <p>Reverse Proxy / Static</p>
+          </div>
+        </div>
+
+        <div
+          style="position:absolute; left:55%; top:30%; width:18%; display:flex; flex-direction:column; gap:15px; z-index:10;">
+          <div class="flow-node-box" style="border-color: rgba(56, 189, 248, 0.4);">
+            <h5>🚀 Backend Node.js</h5>
+            <p>Private Subnet</p>
+            <p>PM2 Cluster / Socket.io</p>
+          </div>
+        </div>
+
+        <div style="position:absolute; left:80%; top:5%; width:16%; z-index:10;">
+          <div class="flow-node-box" style="padding: 10px; border-color: rgba(0, 229, 255, 0.3);">
+            <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:4px;">
+              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg"
+                style="width:14px;height:14px;">
+              <h5 style="margin:0;font-size:12px;">PostgreSQL</h5>
+            </div>
+            <p>Core ACID SQL</p>
+            <p>User, Post, Comment</p>
+          </div>
+        </div>
+
+        <div style="position:absolute; left:80%; top:35%; width:16%; z-index:10;">
+          <div class="flow-node-box" style="padding: 10px; border-color: rgba(52, 211, 153, 0.3);">
+            <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:4px;">
+              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg"
+                style="width:14px;height:14px;">
+              <h5 style="margin:0;font-size:12px;">MongoDB</h5>
+            </div>
+            <p>Document NoSQL</p>
+            <p>Notifications Log</p>
+          </div>
+        </div>
+
+        <div style="position:absolute; left:80%; top:65%; width:16%; z-index:10;">
+          <div class="flow-node-box" style="padding: 10px; border-color: rgba(255, 42, 95, 0.3);">
+            <div style="display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:4px;">
+              <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg"
+                style="width:14px;height:14px;">
+              <h5 style="margin:0;font-size:12px;">Redis</h5>
+            </div>
+            <p>In-Memory DB</p>
+            <p>Cache &amp; Pub/Sub WS</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S6 VPC TOPOLOGY ══ -->
+    <div class="slide" id="s6">
+      <div class="lbl cy">Network &amp; Infrastructure</div>
+      <h2 style="margin-bottom:12px;">Kiến trúc mạng <span class="cyc">phân tầng cô lập</span> (VPC HCM1)</h2>
+
+      <div class="grid2" style="flex:1;align-items:center;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <p class="body">Hạ tầng được triển khai bảo mật nhiều lớp trên cụm cloud HCM1 của CMC Cloud:</p>
+          <div class="note notec">
+            <strong>Public Subnet (DMZ)</strong>: Nơi đặt Nginx Frontend (192.168.4.21) phục vụ static assets và proxy
+            ngược. Chỉ mở cổng 80/443 ra ngoài.
+          </div>
+          <div class="note noteg">
+            <strong>Private Subnet</strong>: Đặt cụm máy chủ Backend Node.js đằng sau Private ALB (192.168.6.126). Các
+            máy ảo Backend không có IP public.
+          </div>
+          <div class="note notea">
+            <strong>Isolated DB Subnet</strong>: Chứa PostgreSQL, MongoDB và Redis Server. Được cô lập bằng pfSense
+            Firewall, chỉ cho phép kết nối từ cụm Backend.
+          </div>
+        </div>
+        <div class="card" style="text-align:center;padding:12px;">
+          <div class="ctitle">Sơ đồ mạng thực tế (cmc-cloud-architecture.png)</div>
+          <img src="./cmc-cloud-architecture.png" alt="CMC Cloud Architecture"
+            style="max-width:100%;max-height:330px;border-radius:6px;border:1px solid var(--line2);box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S7 FULL ARCHITECTURE DIAGRAM ══ -->
+    <div class="slide" id="s7">
+      <div class="lbl cy">Detailed Topology</div>
+      <h2 style="margin-bottom:12px;">Sơ đồ hạ tầng chi tiết <span class="cyc">CMC Cloud Architecture</span></h2>
+      <div
+        style="flex:1;display:flex;justify-content:center;align-items:center;background:var(--panel);border-radius:12px;border:1px solid var(--line2);padding:16px;overflow:hidden;">
+        <img src="./cmc-cloud-architecture.png" alt="CMC Cloud Architecture Full"
+          style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow: 0 8px 30px rgba(0,0,0,0.37);">
+      </div>
+    </div>
+
+    <!-- ══ S8 SECURITY & ACCESS CONTROL ══ -->
+    <div class="slide" id="s8">
+      <div class="lbl cy">Security &amp; Firewall</div>
+      <h2 style="margin-bottom:12px;">Phòng Thủ Chiều Sâu: <span class="cyc">Security Group Rules</span></h2>
+      <p class="body" style="margin-bottom:15px;">Chính sách phân quyền truy cập nghiêm ngặt giữa các phân tầng mạng
+        trên CMC Cloud, kết hợp với pfSense Firewall:</p>
+
+      <table class="ft">
+        <thead>
+          <tr>
+            <th style="width:25%;">Phân vùng (Subnet)</th>
+            <th style="width:20%;">Nguồn truy cập (Source)</th>
+            <th style="width:20%;">Cổng dịch vụ (Port)</th>
+            <th style="width:35%;">Mục đích &amp; Quy định bảo mật</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono tc">Public Subnet (DMZ)</td>
+            <td><code>0.0.0.0/0</code> (Anywhere)</td>
+            <td class="mono">80 (HTTP)</td>
+            <td>Nhận traffic từ Internet vào Nginx Reverse Proxy. <strong>Chỉ mở duy nhất cổng này.</strong></td>
+          </tr>
+          <tr>
+            <td class="mono tg">Private Subnet</td>
+            <td><code>192.168.4.0/24</code> (Public Subnet)</td>
+            <td class="mono">3000 (Backend API)</td>
+            <td>Node.js API nhận request được điều hướng từ Nginx. <strong>Chặn hoàn toàn truy cập trực tiếp từ
+                WAN.</strong></td>
+          </tr>
+          <tr>
+            <td class="mono tr">Isolated DB Subnet</td>
+            <td><code>192.168.6.0/24</code> (Private Subnet)</td>
+            <td class="mono">5432, 27017, 6379</td>
+            <td>PostgreSQL, MongoDB, Redis chỉ chấp nhận kết nối từ cụm Backend. <strong>Cách ly vật lý khỏi
+                Internet.</strong></td>
+          </tr>
+          <tr>
+            <td class="mono ta">Management Subnet</td>
+            <td>CMC Cloud Admin VPN IP</td>
+            <td class="mono">22 (SSH)</td>
+            <td>Truy cập thông qua Bastion Host/Jumpbox để quản trị hệ thống. Yêu cầu khóa SSH Key &amp; 2FA.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ S9 PFSENSE ROUTER & FIREWALL ══ -->
+    <div class="slide" id="s9">
+      <div class="lbl cy">Network Appliance</div>
+      <h2 style="margin-bottom:12px;">pfSense Firewall: <span class="cyc">Kiến trúc Multi-Homed Router</span></h2>
+      <p class="body" style="margin-bottom:15px;max-width:920px;">Hệ thống sử dụng <strong>1 thực thể pfSense duy
+          nhất</strong> làm Router và Firewall trung tâm, kiểm soát toàn bộ traffic liên vùng thông qua 3 card mạng
+        (interfaces) độc lập:</p>
+
+      <div class="grid3" style="flex:1;gap:15px;">
+        <!-- Card 1: WAN -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tr">WAN Interface</span></div>
+          <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px;">WAN
+            (192.168.4.45)</h4>
+          <p style="font-size:12.5px;line-height:1.65;color:var(--ink2);">
+            • Nằm ở <strong>Public Subnet (DMZ)</strong>.<br><br>
+            • <strong>Management Only</strong>: Hoàn toàn không đón nhận user traffic. Chỉ dùng tạo đường hầm VPN/SSH
+            Tunnel bảo mật phục vụ Admin quản trị thông qua Bastion Host.
+          </p>
+        </div>
+
+        <!-- Card 2: WEB -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tc">WEB Interface</span></div>
+          <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px;">WEB
+            (192.168.6.25)</h4>
+          <p style="font-size:12.5px;line-height:1.65;color:var(--ink2);">
+            • Nằm ở <strong>Private Subnet</strong>.<br><br>
+            • <strong>Chốt chặn App &amp; DB</strong>: Kiểm soát và lọc toàn bộ traffic đi từ cụm Node.js Backend sang
+            Isolated Subnet. Bắt buộc thực thi chính sách chỉ mở đúng cổng 5432, 27017, và 6379.
+          </p>
+        </div>
+
+        <!-- Card 3: DB -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tg">DB Interface</span></div>
+          <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px;">DB
+            (192.168.7.6)</h4>
+          <p style="font-size:12.5px;line-height:1.65;color:var(--ink2);">
+            • Nằm ở <strong>Isolated Subnet (DB)</strong>.<br><br>
+            • <strong>Cổng bảo vệ Database</strong>: Chỉ chấp nhận gói tin từ IP nguồn thuộc dải Private Subnet hoặc IP
+            quản trị của Bastion. Chặn đứng hoàn toàn tất cả các dải IP khác.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S10 PFSENSE TRAFFIC FLOW ══ -->
+    <div class="slide" id="s10">
+      <div class="lbl cy">Firewall Traffic Flow</div>
+      <h2 style="margin-bottom:12px;">Định tuyến Bảo mật &amp; <span class="cyc">Phòng thủ Chiều sâu
+          (Defense-in-Depth)</span></h2>
+      <p class="body" style="margin-bottom:15px;max-width:920px;">Cơ chế kiểm soát gói tin đi qua pfSense Firewall và mô
+        hình bảo vệ cơ sở dữ liệu nhiều lớp:</p>
+
+      <div class="grid2" style="flex:1;gap:20px;align-items:start;">
+        <!-- Column 1: Step by Step Flow -->
+        <div class="card panel" style="display:flex;flex-direction:column;gap:10px;width:100%;">
+          <div class="ctitle">Luồng Đi Của Packet (Backend → PostgreSQL)</div>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            1. <strong>Backend EC2-1</strong> (<code>192.168.6.228</code>) gửi câu lệnh query tới PostgreSQL
+            (<code>192.168.7.251:5432</code>).<br>
+            2. Gói tin đi tới cổng Default Gateway <strong>WEB Interface</strong> (<code>192.168.6.25</code>) trên
+            pfSense.<br>
+            3. pfSense kiểm duyệt luật: <em>"Cổng 5432 từ 192.168.6.0/24 có được phép?"</em> →
+            <strong>ALLOW</strong>.<br>
+            4. pfSense định tuyến đẩy gói tin ra <strong>DB Interface</strong> (<code>192.168.7.6</code>) đi vào
+            Isolated Subnet tới PostgreSQL.<br>
+            5. PostgreSQL nhận gói tin và phản hồi theo luồng ngược lại.
+          </p>
+        </div>
+
+        <!-- Column 2: Defense in Depth Benefits -->
+        <div class="card panel" style="display:flex;flex-direction:column;gap:10px;width:100%;">
+          <div class="ctitle">Tại Sao Kiến Trúc Này Cực Kỳ An Toàn?</div>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            • <strong>Phòng thủ 2 lớp (Defense-in-depth)</strong>: Database được bảo vệ song song bởi <strong>Security
+              Group</strong> của CMC Cloud (Lớp 1) và <strong>Firewall Rules của pfSense</strong> (Lớp 2). Bất kỳ cấu
+            hình sai nào ở một lớp vẫn được lớp còn lại bảo vệ.<br><br>
+            • <strong>Default Gateway Enforcer</strong>: pfSense làm gateway ép buộc mọi luồng traffic chéo
+            (cross-subnet) phải được duyệt. Cấm hoàn toàn IP của Public Subnet kết nối thẳng tới Database Subnet.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S11 POSTGRESQL SCHEMA ══ -->
+    <div class="slide" id="s11">
+      <div class="lbl g">Relational Core</div>
+      <h2 style="margin-bottom:12px;">PostgreSQL: <span class="g">Core Relational Storage</span></h2>
+
+      <div class="grid2" style="flex:1;align-items:start;">
+        <div class="card panel" style="display:flex;flex-direction:column;gap:10px;">
+          <div class="ctitle">Bảng quan hệ &amp; Thiết kế Cascade Deletes</div>
+          <p style="font-size:14px;line-height:1.75;color:var(--ink2);">
+            - <code>users</code>: Quản lý thông tin định danh và tài khoản.<br>
+            - <code>posts</code> &amp; <code>comments</code>: Dữ liệu phân cấp bài viết và bình luận.<br>
+            - <code>follows</code>: Sử dụng khóa ngoại kép <code>(follower_id, followed_id)</code> làm Primary Key để
+            chặn theo dõi lặp chéo.<br>
+            - <code>community_members</code>: Quản lý mối quan hệ tham gia hội nhóm.<br>
+            - <strong>Cascade Delete</strong>: Khi bài đăng bị xóa, các comment liên kết và vote sẽ tự động được
+            Postgres dọn dẹp sạch sẽ ở mức cơ sở dữ liệu.
+          </p>
+        </div>
+
+        <div class="code sm">
+          <div class="bar">
+            <div class="dot" style="background:#ff5f56;"></div>
+            <div class="dot" style="background:#ffbd2e;"></div>
+            <div class="dot" style="background:#27c93f;"></div>
+            <span class="fname">db-pg-init.js (Snippet)</span>
+          </div>
+          <div class="body-c">
+            <span class="cm">// Khởi tạo bảng follows với primary key kép</span><br>
+            <span class="kw">CREATE TABLE</span> <span class="fn">follows</span> (<br>
+            &nbsp;&nbsp;follower_id <span class="kw">INTEGER</span> <span class="kw">REFERENCES</span> users(id),<br>
+            &nbsp;&nbsp;followed_id <span class="kw">INTEGER</span> <span class="kw">REFERENCES</span> users(id),<br>
+            &nbsp;&nbsp;<span class="kw">PRIMARY KEY</span> (follower_id, followed_id)<br>
+            );<br>
+            <br>
+            <span class="cm">// Đảm bảo cascade delete bình luận</span><br>
+            <span class="kw">ALTER TABLE</span> <span class="fn">comments</span><br>
+            <span class="kw">ADD CONSTRAINT</span> fk_post<br>
+            &nbsp;&nbsp;<span class="kw">FOREIGN KEY</span> (post_id) <span class="kw">REFERENCES</span> posts(id)<br>
+            &nbsp;&nbsp;<span class="kw">ON DELETE CASCADE</span>;
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S12 MONGODB SCHEMA ══ -->
+    <div class="slide" id="s12">
+      <div class="lbl g">Activity Logs</div>
+      <h2 style="margin-bottom:12px;">MongoDB: <span class="g">Luồng Log Thông Báo Co Giãn</span></h2>
+
+      <div class="grid2" style="flex:1;align-items:start;">
+        <div class="code sm">
+          <div class="bar">
+            <div class="dot" style="background:#ff5f56;"></div>
+            <div class="dot" style="background:#ffbd2e;"></div>
+            <div class="dot" style="background:#27c93f;"></div>
+            <span class="fname">notification.model.js</span>
+          </div>
+          <div class="body-c">
+            <span class="kw">const</span> NotificationSchema = <span class="kw">new</span> <span
+              class="fn">Schema</span>({<br>
+            &nbsp;&nbsp;userId: { <span class="kw">type</span>: <span class="fn">Number</span>, <span
+              class="var">required</span>: <span class="num">true</span> },<br>
+            &nbsp;&nbsp;sender: { <span class="kw">type</span>: <span class="fn">String</span>, <span
+              class="var">required</span>: <span class="num">true</span> },<br>
+            &nbsp;&nbsp;type: { <span class="kw">type</span>: <span class="fn">String</span>, <span
+              class="var">required</span>: <span class="num">true</span> },<br>
+            &nbsp;&nbsp;title: { <span class="kw">type</span>: <span class="fn">String</span>, <span
+              class="var">required</span>: <span class="num">true</span> },<br>
+            &nbsp;&nbsp;isRead: { <span class="kw">type</span>: <span class="fn">Boolean</span>, <span
+              class="var">default</span>: <span class="num">false</span> },<br>
+            &nbsp;&nbsp;createdAt: { <span class="kw">type</span>: <span class="fn">Date</span>, <span
+              class="var">default</span>: <span class="fn">Date.now</span> }<br>
+            });<br>
+            <br>
+            <span class="cm">// Compound index đếm chưa đọc siêu nhanh</span><br>
+            NotificationSchema.<span class="fn">index</span>({ userId: <span class="num">1</span>, isRead: <span
+              class="num">1</span> });
+          </div>
+        </div>
+
+        <div class="card panel" style="display:flex;flex-direction:column;gap:10px;">
+          <div class="ctitle">Tại sao chọn MongoDB thay vì PostgreSQL cho Log?</div>
+          <p style="font-size:13px;line-height:1.75;color:var(--ink2);">
+            • <strong>Schema động (Polymorphic JSON)</strong>: Thông báo có cấu trúc thay đổi tùy hành vi (Upvote,
+            Comment, Follow). MongoDB lưu dạng JSON linh hoạt, tránh bảng SQL trống chứa đầy cột NULL.<br><br>
+            • <strong>Ghi tải tốc độ cao (Write-Heavy Isolation)</strong>: Log ghi liên tục, lưu ở MongoDB giúp giải
+            phóng tài nguyên CPU/IO của PostgreSQL chính khỏi các tác vụ ghi log dồn dập.<br><br>
+            • <strong>Tránh Bloat Index và Buffer Pool</strong>: Tách biệt hoàn toàn bảng log lớn khỏi PostgreSQL, giúp
+            bảo vệ RAM cache của dữ liệu nghiệp vụ quan trọng (Users, Posts) không bị đẩy ra ngoài.<br><br>
+            • <strong>Tự hủy dữ liệu (TTL Auto-Purge)</strong>: MongoDB tự dọn dẹp log sau 30 ngày bằng luồng ngầm hiệu
+            quả, tránh việc chạy <code>DELETE</code> định kỳ gây khóa bảng và phân mảnh đĩa trong PostgreSQL.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S13 REDIS CACHING ══ -->
+    <div class="slide" id="s13">
+      <div class="lbl cy">Caching Logic</div>
+      <h2 style="margin-bottom:12px;">Redis Cache: <span class="cyc">Chiến lược Caching Unread Count</span></h2>
+      <p class="body" style="margin-bottom:18px;max-width:920px;">Để tránh MongoDB bị overload do hàng ngàn người dùng
+        tải trang và đếm thông báo liên tục, chúng tôi thiết kế luồng bộ đệm tốc độ cao bằng Redis Cache:</p>
+
+      <div style="display:flex;gap:12px;margin-bottom:18px;align-items:center;">
+        <span class="tag tc" style="font-size:11px;padding:4px 8px;font-family:var(--mono);">Cấu trúc Key:
+          <code>unread_count:userId</code></span>
+        <span class="tag tg" style="font-size:11px;padding:4px 8px;font-family:var(--mono);">Kiểu dữ liệu:
+          <code>String (Integer)</code></span>
+        <span class="tag ta" style="font-size:11px;padding:4px 8px;font-family:var(--mono);">Thời gian sống:
+          <code>TTL 3600s (1 Giờ)</code></span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="fnode fnd" style="min-width:150px;font-size:12px;">Yêu cầu đếm unread</div>
+          <div class="farr">→</div>
+          <div class="fnode fnc" style="flex:1;">Kiểm tra Redis Cache <span class="sub">GET unread_count:userId</span>
+          </div>
+          <div class="farr">→</div>
+          <div class="fnode fng" style="flex:1.2;">Cache HIT <span class="sub">Trả về ngay kết quả từ RAM
+              (&lt;1ms)</span></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="fnode fnr" style="min-width:150px;font-size:12px;">Cache MISS</div>
+          <div class="farr">→</div>
+          <div class="fnode fna" style="flex:1;">Query count từ MongoDB <span class="sub">Mongo countDocuments()</span>
+          </div>
+          <div class="farr">→</div>
+          <div class="fnode fnc" style="flex:1.2;">Đồng bộ lưu vào Redis <span class="sub">SETEX với TTL 1 giờ
+              (3600s)</span></div>
+          <div class="farr">→</div>
+          <div class="fnode fng" style="min-width:120px;">Trả kết quả</div>
+        </div>
+      </div>
+
+      <div class="note noteg">
+        <strong>Hiệu quả vận hành</strong>: Cache được cập nhật thông minh (INCR) mỗi khi có thông báo mới và bị xóa
+        (DEL) khi user nhấn đọc. Bảo đảm đồng nhất dữ liệu mà không gây gánh nặng cho MongoDB.
+      </div>
+    </div>
+
+    <!-- ══ S14 REDIS PUB/SUB ══ -->
+    <div class="slide" id="s14">
+      <div class="lbl g">Real-time Synchronization</div>
+      <h2 style="margin-bottom:12px;">Redis Pub/Sub: <span class="g">Đồng bộ cụm WebSocket</span></h2>
+      <p class="body" style="margin-bottom:15px;max-width:920px;">Đồng bộ sự kiện thời gian thực xuyên suốt các instance
+        backend bằng cách publish trực tiếp đối tượng vừa lưu từ MongoDB mà không cần truy vấn lại:</p>
+
+      <div class="grid2" style="flex:1;align-items:start;gap:20px;">
+        <!-- Code editor side -->
+        <div class="code sm" style="max-height: 310px; overflow-y: auto;">
+          <div class="bar">
+            <div class="dot" style="background:#ff5f56;"></div>
+            <div class="dot" style="background:#ffbd2e;"></div>
+            <div class="dot" style="background:#27c93f;"></div>
+            <span class="fname">redis-pubsub-flow.js</span>
+          </div>
+          <div class="body-c" style="font-size:11px; line-height: 1.5; text-align: left;">
+            <span class="cm">// 1. Luồng Ghi MongoDB &amp; Publish (Không query lại DB)</span><br>
+            <span class="kw">const</span> savedNotif = <span class="kw">await</span> notification.<span
+              class="fn">save</span>();<br>
+            <span class="cm">// Tăng unread cache và gửi thẳng dữ liệu vừa lưu lên Redis</span><br>
+            <span class="kw">await</span> <span class="fn">incrCache</span>(<span
+              class="str">`unread_count:${userId}`</span>);<br>
+            <span class="fn">sendNotification</span>(userId, savedNotif); <span class="cm">// Đẩy payload trực
+              tiếp</span><br>
+            <br>
+            <span class="kw">function</span> <span class="fn">sendNotification</span>(userId, payload) {<br>
+            &nbsp;&nbsp;<span class="fn">publishEvent</span>(<span class="str">'notifications'</span>, { userId,
+            notification: payload });<br>
+            }<br>
+            <br>
+            <span class="cm">// 2. Luồng Nhận (Subscribe) &amp; Emit qua WebSocket</span><br>
+            <span class="fn">subscribeToChannel</span>(<span class="str">'notifications'</span>, (data) => {<br>
+            &nbsp;&nbsp;<span class="kw">if</span> (io &amp;&amp; data.userId) {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">const</span> roomName = <span
+              class="str">`user:${data.userId}`</span>;<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Đẩy tin trực tiếp cho User B từ bộ nhớ đệm</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;io.<span class="fn">to</span>(roomName).<span class="fn">emit</span>(<span
+              class="str">'notification'</span>, data.notification);<br>
+            &nbsp;&nbsp;}<br>
+            });
+          </div>
+        </div>
+
+        <!-- Description and Flow side -->
+        <div style="display:flex;flex-direction:column;gap:12px;width:100%;">
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="fnode fnd" style="flex:1;font-size:11px;padding:6px 10px;">User A tương tác</div>
+              <div class="farr">→</div>
+              <div class="fnode fnr" style="flex:1.2;font-size:11px;padding:6px 10px;">Node.js 1 lưu MongoDB</div>
+              <div class="farr">→</div>
+              <div class="fnode fna" style="flex:1.2;font-size:11px;padding:6px 10px;">Publish raw payload</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="farr"
+                style="transform: rotate(90deg); margin-left: 20px; margin-top:-6px; margin-bottom:-6px;">→</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="fnode fnc" style="flex:1;font-size:11px;padding:6px 10px;">Redis Channel</div>
+              <div class="farr">→</div>
+              <div class="fnode fng" style="flex:1.3;font-size:11px;padding:6px 10px;">Broadcast tới Node.js 2</div>
+              <div class="farr">→</div>
+              <div class="fnode fnc" style="flex:1.2;font-size:11px;padding:6px 10px;">Emit WebSocket User B</div>
+            </div>
+          </div>
+
+          <div class="note notec" style="margin-top:5px;font-size:12.5px;line-height:1.5;">
+            <strong>Cơ chế tối ưu hóa</strong>: Backend lấy trực tiếp kết quả trả về của câu lệnh ghi MongoDB
+            (<code>savedNotif</code>) làm payload phát sóng. Việc này loại bỏ hoàn toàn các câu truy vấn đọc thứ cấp
+            xuống MongoDB, giúp giảm thiểu độ trễ và I/O đĩa.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S15 REDIS PUB/SUB DIAGRAM ══ -->
+    <div class="slide" id="s15">
+      <div class="lbl g">Pub/Sub Flow</div>
+      <h2 style="margin-bottom:12px;">Sơ đồ đồng bộ thực tế <span class="g">Redis Pub/Sub &amp; WebSockets</span></h2>
+      <div
+        style="flex:1;display:flex;justify-content:center;align-items:center;background:var(--panel);border-radius:12px;border:1px solid var(--line2);padding:16px;overflow:hidden;">
+        <img src="./redis-pub-sub-work.png" alt="Redis Pub Sub Work Full"
+          style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow: 0 8px 30px rgba(0,0,0,0.37);">
+      </div>
+    </div>
+
+    <!-- ══ S16 TROUBLESHOOTING ══ -->
+    <div class="slide" id="s16">
+      <div class="lbl re">Troubleshooting &amp; Ops</div>
+      <h2 style="margin-bottom:12px;">Kinh nghiệm thực tế &amp; <span class="re">Khắc phục sự cố</span></h2>
+      <p class="body" style="margin-bottom:18px;">Các bài học xương máu được đúc rút trong quá trình cấu hình hạ tầng
+        mạng và tích hợp dịch vụ trên hệ thống:</p>
+
+      <table class="ft">
+        <thead>
+          <tr>
+            <th style="width:30%;">Tình huống lỗi</th>
+            <th style="width:35%;">Nguyên nhân gốc rễ</th>
+            <th style="width:35%;">Giải pháp xử lý</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono re">WebSocket 400 Bad Response</td>
+            <td>Public ELB ở Layer 7 (HTTP) lọc mất header Upgrade/Connection.</td>
+            <td>Chuyển Public ELB sang <strong>Layer 4 (TCP Listener)</strong> để truyền raw TCP.</td>
+          </tr>
+          <tr>
+            <td class="mono re">Session ID unknown (400)</td>
+            <td>Handshake bằng HTTP Polling bị ALB phân tán sang các Backend khác nhau.</td>
+            <td>Ép cứng client chạy duy nhất WebSocket: <code>transports: ["websocket"]</code>.</td>
+          </tr>
+          <tr>
+            <td class="mono re">CORS socket.io.min.js.map</td>
+            <td>CDN khác origin chặn trình duyệt tải file source map.</td>
+            <td>Chuyển thư viện tải sang <strong>cdnjs của Cloudflare</strong>.</td>
+          </tr>
+          <tr>
+            <td class="mono re">Node.js boot crash (PM2)</td>
+            <td>Thiếu biến môi trường (Environment Variables) cấu hình trong file <code>.env</code>.</td>
+            <td>Tạo tệp <code>.env</code> đầy đủ cấu hình kết nối DB/Redis trước khi khởi động ứng dụng bằng PM2.</td>
+          </tr>
+          <!-- ══ TÌNH HUỐNG LỖI 16: RESPONSE PAYLOAD OVERLOAD ══ -->
+          <div
+            style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px; padding: 18px; margin-top: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <span style="font-size: 14px; font-weight: 700; color: #ef4444; letter-spacing: 0.5px;">
+                ⚠️ TÌNH HUỐNG LỖI #16: RESPONSE PAYLOAD BOTTLENECK (> 1MB)
+              </span>
+              <span
+                style="background: rgba(239, 68, 68, 0.15); color: #f87171; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                CRITICAL
+              </span>
+            </div>
+
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 13px; line-height: 1.5; color: #cbd5e1;">
+              <!-- Cột Nguyên nhân -->
+              <div
+                style="background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                <b style="color: #f87171;">🔴 Vấn đề phát sinh:</b><br />
+                API trả trực tiếp data ảnh/file trong JSON Response (Payload &gt; 1MB). Khi 1.000 VUs truy cập, băng
+                thông mạng bị nghẽn lập tức, P95 Latency vọt lên <b>&gt; 5 giây</b> gây ra hàng loạt lỗi
+                <code>request timeout</code>.
+              </div>
+
+              <!-- Cột Giải pháp -->
+              <div
+                style="background: rgba(0, 0, 0, 0.25); padding: 12px; border-radius: 8px; border-left: 3px solid #10b981;">
+                <b style="color: #34d399;">🟢 Giải pháp S3 Storage + CDN:</b><br />
+                Chuyển toàn bộ Media/Images lên <b>AWS S3 Storage</b>. Backend chỉ lưu trữ và trả về đường dẫn <b>S3/CDN
+                  URL</b> trong JSON. Response Payload giảm từ <b>1MB &rarr; &lt;2KB</b>, giúp giải phóng 100% băng
+                thông API.
+              </div>
+            </div>
+          </div>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ S17 BACKUP POLICIES ══ -->
+    <div class="slide" id="s17">
+      <div class="lbl am">Backup Policies</div>
+      <h2 style="margin-bottom:12px;">Chính sách Sao lưu: <span class="am">Bảo vệ Đa tầng Dữ liệu</span></h2>
+      <p class="body" style="margin-bottom:20px;max-width:920px;">Chính sách sao lưu được phân cấp theo mức độ quan
+        trọng (Class A/B/C) để tối ưu hóa hiệu năng DBaaS và chi phí lưu trữ trên CMC Cloud:</p>
+
+      <div class="grid3" style="flex:1;gap:15px;">
+        <!-- Card 1: PostgreSQL Backup -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tr">Class A - Critical</span></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg"
+              style="width:20px;height:20px;" alt="PostgreSQL">
+            <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin:0;">PostgreSQL
+              Backup</h4>
+          </div>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            • <strong>Daily Snapshot</strong>: Tự động chụp ảnh đĩa cứng vào 03:00 AM (thấp tải), thời gian lưu trữ
+            <strong>30 ngày</strong>.<br><br>
+            • <strong>Point-in-Time Recovery (PITR)</strong>: Nhật ký ghi trước (WAL) được đồng bộ liên tục lên Object
+            Storage mỗi 5 phút, cho phép khôi phục chính xác tới từng giây lịch sử trong vòng <strong>7 ngày</strong>.
+          </p>
+        </div>
+
+        <!-- Card 2: MongoDB Backup -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tg">Class B - Important</span></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/mongodb/mongodb-original.svg"
+              style="width:20px;height:20px;" alt="MongoDB">
+            <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin:0;">MongoDB Policy
+            </h4>
+          </div>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            • <strong>Daily Snapshot</strong>: Tự động chụp snapshot lúc 03:00 AM, thời gian lưu trữ <strong>14
+              ngày</strong>.<br><br>
+            • <strong>Tối ưu hóa chi phí</strong>: Không chạy PITR/WAL liên tục do dữ liệu log/thông báo có tính chất
+            động và có thể tái tạo nếu cần thiết.
+          </p>
+        </div>
+
+        <!-- Card 3: Redis Policy -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tc">Class C - Volatile</span></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg"
+              style="width:20px;height:20px;" alt="Redis">
+            <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin:0;">Redis Policy
+            </h4>
+          </div>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            • <strong>Không sao lưu</strong>: Redis chạy In-Memory hoàn toàn cho cache và WebSocket Pub/Sub.<br><br>
+            • <strong>Cơ chế tự sinh</strong>: Nếu mất dữ liệu, hệ thống tự động tải lại từ MongoDB (Cache Miss), tránh
+            lãng phí RAM/CPU ghi đĩa liên tục.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S18 DISASTER RECOVERY & RESTORE ══ -->
+    <div class="slide" id="s18">
+      <div class="lbl re">Disaster Recovery &amp; Restore</div>
+      <h2 style="margin-bottom:12px;">Khôi phục Dữ liệu: <span class="re">Disaster Recovery &amp; Restore</span></h2>
+      <p class="body" style="margin-bottom:18px;max-width:920px;">Quy trình khôi phục chuẩn sản xuất (production-ready)
+        trên CMC Cloud để ứng phó sự cố khẩn cấp và bảo toàn dữ liệu:</p>
+
+      <div class="grid3" style="flex:1;gap:15px;">
+        <!-- Card 1: Restore Golden Rule -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tr">Golden Rule</span></div>
+          <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px;">🛡️ Quy
+            tắc Vàng</h4>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            • <strong>Không khôi phục đè (In-place)</strong>: Tuyệt đối không khôi phục trực tiếp lên cơ sở dữ liệu đang
+            hoạt động.<br><br>
+            • <strong>Quy trình chuẩn</strong>: Khôi phục ra instance mới -> Kiểm tra dữ liệu -> Cập nhật IP trong cấu
+            hình <code>.env</code> -> PM2 reload.
+          </p>
+        </div>
+
+        <!-- Card 2: PITR Recovery Flow -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tc">PostgreSQL PITR</span></div>
+          <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px;">⚡ Khôi
+            phục PITR</h4>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            • <strong>Chính xác từng giây</strong>: Chọn thời điểm trước sự cố trên Portal CMC Cloud.<br><br>
+            • <strong>Dọn dẹp an toàn</strong>: Giữ DB lỗi trong 48 giờ để đối chiếu log trước khi xóa bỏ, giúp tránh
+            rủi ro mất mát ngoài ý muốn.
+          </p>
+        </div>
+
+        <!-- Card 3: Disaster Recovery Metrics -->
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tg">DR Metrics</span></div>
+          <h4 style="font-family:var(--disp);font-size:15px;font-weight:700;color:var(--ink);margin-bottom:8px;">📊 Chỉ
+            số DR</h4>
+          <p style="font-size:12.5px;line-height:1.6;color:var(--ink2);">
+            • <strong>RPO (Recovery Point Objective)</strong>:<br>
+            - PostgreSQL: &lt; 5 phút (WAL)<br>
+            - MongoDB: &lt; 24 giờ (Snapshot)<br><br>
+            • <strong>RTO (Recovery Time Objective)</strong>:<br>
+            - Toàn hệ thống: &lt; 30 phút (tạo VM mới &amp; cập nhật cấu hình).
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S19 BILL OF MATERIALS (BOM) & TCO ══ -->
+    <div class="slide" id="s19">
+      <div class="lbl cy">Bill of Materials (BOM) &amp; TCO Analysis</div>
+      <h2 style="margin-bottom:8px;">Dự Toán Chi Phí Đầu Tư: <span class="cyc">Bảng BOM Hạ Tầng CMC Cloud</span></h2>
+      <p class="body" style="margin-bottom:12px;font-size:14px;">Bóc tách chi phí thực tế theo mô hình kiến trúc
+        Clouddit HCM1 (trích xuất từ hồ sơ cước <code>billing-detail-muge.csv</code>):</p>
+
+      <div class="bom-container">
+        <!-- Cột trái: Bảng BOM 5 phân tầng -->
+        <div class="bom-table-wrapper">
+          <div class="bom-scroll">
+            <table class="bom-tbl">
+              <thead>
+                <tr>
+                  <th style="width:38%;">Thành Phần Kiến Trúc</th>
+                  <th style="width:30%;">Cấu Hình / Dịch Vụ CMC</th>
+                  <th style="width:8%;text-align:center;">SL</th>
+                  <th style="width:24%;text-align:right;">Thành Tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Tier 1: Mạng & Bảo Mật -->
+                <tr class="bom-tier-row">
+                  <td colspan="4" style="color:var(--cyan);">1. Mạng &amp; An Ninh Ngoại Vi (Perimeter &amp; Network)
+                  </td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tc">VPC</span> cmc-prod-hcm1-vpc</div>
+                    <div class="bom-item-spec">Mạng riêng ảo cô lập 3 subnets</div>
+                  </td>
+                  <td><span class="bom-item-spec">VPC Network HCM1</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">400.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tr">FW</span> pfSense Firewall Appliance</div>
+                    <div class="bom-item-spec">Router &amp; Firewall L3-L7 + 20GB OS</div>
+                  </td>
+                  <td><span class="bom-item-spec">4 vCPUs - 4GB RAM + EV</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">954.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill ta">SSH</span> Bastion Jumpbox Host</div>
+                    <div class="bom-item-spec">ecs-tc6b-bastion + 20GB OS</div>
+                  </td>
+                  <td><span class="bom-item-spec">1 vCPUs - 2GB RAM + EV</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">354.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tc">EIP</span> Elastic IP Public WAN</div>
+                    <div class="bom-item-spec">101.99.59.220 (pfSense) &amp; .233 (Bastion)</div>
+                  </td>
+                  <td><span class="bom-item-spec">500-30 Mbps (100k/IP)</span></td>
+                  <td style="text-align:center;">2</td>
+                  <td class="bom-price">200.000 đ</td>
+                </tr>
+
+                <!-- Tier 2: Tầng Web DMZ -->
+                <tr class="bom-tier-row">
+                  <td colspan="4" style="color:var(--green);">2. Tầng Web DMZ (Public Subnet 192.168.4.0/24)</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tg">ELB</span> Public Load Balancer</div>
+                    <div class="bom-item-spec">Cân bằng tải Internet vào Nginx HTTP:80</div>
+                  </td>
+                  <td><span class="bom-item-spec">ELB Medium L4/L7</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">510.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tg">WEB</span> Nginx Frontend HA Cluster</div>
+                    <div class="bom-item-spec">reddit-frontend &amp; frontend2 + 20GB EV</div>
+                  </td>
+                  <td><span class="bom-item-spec">2 vCPUs - 2GB RAM (x2)</span></td>
+                  <td style="text-align:center;">2</td>
+                  <td class="bom-price">1.008.000 đ</td>
+                </tr>
+
+                <!-- Tier 3: Tầng Ứng Dụng -->
+                <tr class="bom-tier-row">
+                  <td colspan="4" style="color:var(--amber);">3. Tầng Ứng Dụng Backend (Private Subnet 192.168.6.0/24)
+                  </td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill ta">ALB</span> Private ELB (Internal)</div>
+                    <div class="bom-item-spec">reddit-backend-alb (192.168.6.126)</div>
+                  </td>
+                  <td><span class="bom-item-spec">ELB Medium Internal</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">510.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill ta">APP</span> Backend API Auto Scaling</div>
+                    <div class="bom-item-spec">private_web_server 1 &amp; 2 (Node.js + PM2)</div>
+                  </td>
+                  <td><span class="bom-item-spec">8 vCPUs - 8GB RAM (x2)</span></td>
+                  <td style="text-align:center;">2</td>
+                  <td class="bom-price">3.708.000 đ</td>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tc">AS</span> Auto Scaling Group (AS)</div>
+                    <div class="bom-item-spec">as-group-fe-reddit (Volume cấu hình AS 20GB)</div>
+                  </td>
+                  <td><span class="bom-item-spec">AS Group Management + EV</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">54.000 đ</td>
+                </tr>
+
+                <!-- Tier 4: Tầng Cơ Sở Dữ Liệu -->
+                <tr class="bom-tier-row">
+                  <td colspan="4" style="color:var(--red);">4. Tầng Cơ Sở Dữ Liệu (Isolated DB Subnet 192.168.7.0/24)
+                  </td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tc">PG</span> PostgreSQL Managed DB</div>
+                    <div class="bom-item-spec">postgre_production (192.168.7.251) + 20GB</div>
+                  </td>
+                  <td><span class="bom-item-spec">2vCPU - 4GB - 100GB SSD</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">924.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tg">MGO</span> MongoDB Managed DB</div>
+                    <div class="bom-item-spec">mongo_production (192.168.7.155) + 20GB</div>
+                  </td>
+                  <td><span class="bom-item-spec">2vCPU - 4GB - 100GB SSD</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">924.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tr">RDS</span> Redis In-Memory Managed</div>
+                    <div class="bom-item-spec">redis_production (192.168.7.117) + 20GB</div>
+                  </td>
+                  <td><span class="bom-item-spec">2vCPU - 4GB - 100GB SSD</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">924.000 đ</td>
+                </tr>
+
+                <!-- Tier 5: Lưu Trữ & Backup -->
+                <tr class="bom-tier-row">
+                  <td colspan="4" style="color:var(--cyan);">5. Lưu Trữ Media &amp; Sao Lưu Thảm Họa (Storage &amp; DR)
+                  </td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tc">S3</span> CMC S3 Standard Storage</div>
+                    <div class="bom-item-spec">Lưu trữ ảnh / media bài viết Clouddit</div>
+                  </td>
+                  <td><span class="bom-item-spec">1,000 GB (1 TB) Storage</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">1.000.000 đ</td>
+                </tr>
+                <tr class="bom-item-row">
+                  <td>
+                    <div class="bom-item-name"><span class="bom-pill tg">CB</span> Cloud Backup Vault</div>
+                    <div class="bom-item-spec">vault-vs26: Daily snapshots VMs &amp; DBs</div>
+                  </td>
+                  <td><span class="bom-item-spec">1,000 GB Backup Vault</span></td>
+                  <td style="text-align:center;">1</td>
+                  <td class="bom-price">1.000.000 đ</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="bom-footer-total">
+            <span style="color:var(--ink);font-weight:700;font-size:12px;letter-spacing:0.02em;">TỔNG DỰ TOÁN PRODUCTION
+              (ĐÃ GỒM AS):</span>
+            <span
+              style="color:var(--green);font-size:17px;font-weight:700;text-shadow: 0 0 10px rgba(0,229,255,0.4);">12.470.000
+              VNĐ / tháng</span>
+          </div>
+        </div>
+
+        <!-- Cột phải: KPI, Dự Báo Scale & Bóc tách TCO -->
+        <div class="bom-side-panel">
+          <!-- Card 1: Tổng quan chỉ số tài chính -->
+          <div class="bom-kpi-card">
+            <div class="ctitle" style="margin-bottom:2px;color:var(--ink3);">Tổng Mức Đầu Tư Vận Hành (Baseline)</div>
+            <div class="bom-kpi-val">12.47 <span style="font-size:15px;color:var(--ink2);font-weight:500;">Triệu VNĐ /
+                tháng</span></div>
+            <div style="font-size:10.5px;color:var(--ink3);margin-bottom:6px;font-family:var(--mono);">≈ 149,64 Triệu
+              VNĐ/năm (~$480 USD/tháng)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">
+              <span class="tag tg" style="padding:2px 6px;font-size:9.5px;">CapEx = 0 VNĐ</span>
+              <span class="tag tc" style="padding:2px 6px;font-size:9.5px;">100% OpEx Linh Hoạt</span>
+              <span class="tag ta" style="padding:2px 6px;font-size:9.5px;">Phí AS: 54k/tháng</span>
+              <span class="tag tr" style="padding:2px 6px;font-size:9.5px;">Bản Quyền 0đ</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Dự Báo Scale Thêm AS (c6.2xlarge.1 - 3.212 đ/h) -->
+          <div class="card panel"
+            style="padding:8px 11px;border-color:rgba(0,229,255,0.4);background:linear-gradient(135deg, rgba(17,24,39,0.9), rgba(8,12,20,0.95));">
+            <div class="ctitle"
+              style="color:var(--cyan);margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+              <span>⚡ Dự Báo Auto Scaling (c6.2xlarge.1)</span>
+              <span class="tag tc" style="font-size:8.5px;padding:1px 5px;margin:0;">3.212 đ/giờ</span>
+            </div>
+
+            <!-- Block công thức c6.2xlarge.1 theo 10% thời gian -->
+            <div
+              style="background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.22);padding:4px 7px;border-radius:6px;margin-bottom:5px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);">
+                <strong style="color:var(--ink);font-size:10px;">Gói c6.2xlarge.1 (8 vCPUs | 8 GB)</strong>
+                <span style="color:var(--green);font-weight:700;font-size:10.5px;">3.212 đ/h</span>
+              </div>
+              <div style="font-size:9px;color:var(--ink3);line-height:1.35;margin-top:2px;">
+                Giả sử chạy AS <strong>10% thời gian/tháng</strong> = <strong>72 giờ</strong> (≈ 2.4 giờ cao điểm/ngày)
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:10.5px;">
+              <!-- +1 EC c6.2xlarge.1 -->
+              <div
+                style="background:rgba(30,41,59,0.45);padding:4px 7px;border-radius:5px;border-left:3px solid var(--green);display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <strong style="color:var(--ink);font-size:10px;">Scale thêm +1 EC (10% = 72h)</strong>
+                  <div style="font-size:8.5px;color:var(--ink3);font-family:var(--mono);">72h × 3.212 đ/h</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-family:var(--mono);color:var(--green);font-weight:700;font-size:11px;">+231.264
+                    đ<span style="font-size:8.5px;color:var(--ink3);">/th</span></div>
+                  <div style="font-size:8.5px;color:var(--cyan);font-family:var(--mono);">Tổng: ~12.70M/th</div>
+                </div>
+              </div>
+
+              <!-- +2 ECs c6.2xlarge.1 -->
+              <div
+                style="background:rgba(30,41,59,0.45);padding:4px 7px;border-radius:5px;border-left:3px solid var(--amber);display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <strong style="color:var(--ink);font-size:10px;">Scale thêm +2 ECs (10% = 72h)</strong>
+                  <div style="font-size:8.5px;color:var(--ink3);font-family:var(--mono);">2 × 72h × 3.212 đ/h</div>
+                </div>
+                <div style="text-align:right;">
+                  <div style="font-family:var(--mono);color:var(--amber);font-weight:700;font-size:11px;">+462.528
+                    đ<span style="font-size:8.5px;color:var(--ink3);">/th</span></div>
+                  <div style="font-size:8.5px;color:var(--green);font-family:var(--mono);">Tổng: ~12.93M/th</div>
+                </div>
+              </div>
+
+              <!-- Hiệu quả kinh tế -->
+              <div style="font-size:9px;color:var(--ink2);line-height:1.35;margin-top:1px;">
+                💡 Chạy AS 10% giờ cao điểm chỉ tốn <strong>462k/tháng</strong>, tiết kiệm <strong>87.5%</strong> so với
+                thuê cố định 24/7 (tiết kiệm <strong>~3.24M/tháng</strong>).
+              </div>
+            </div>
+          </div>
+
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S20 CAPACITY & TARGET AUDIENCE ══ -->
+    <div class="slide" id="s20">
+      <div class="lbl gn">Capacity Planning &amp; Business Fit</div>
+      <h2 style="margin-bottom:8px;">Năng Lực Chịu Tải <span class="gnc">&amp; Đối Tượng Doanh Nghiệp Phù Hợp</span>
+      </h2>
+      <p class="body" style="margin-bottom:12px;font-size:13.5px;">Định lượng khả năng phục vụ đồng thời và phân khúc
+        thị trường tối ưu cho kiến trúc Clouddit:</p>
+
+      <div class="cap-container">
+        <!-- Cột trái: Đo lường tải & thông lượng -->
+        <div style="display:flex;flex-direction:column;min-height:0;">
+          <div class="ctitle" style="color:var(--green);margin-bottom:8px;">📊 1. Đo Lường Khả Năng Phục Vụ &amp; Thông
+            Lượng (Capacity)</div>
+
+          <div class="cap-metrics-grid">
+            <!-- Metric 1: Concurrent Users -->
+            <div class="cap-stat-box c-green">
+              <div class="cap-stat-title">
+                <span>Concurrent Users</span>
+                <span class="bom-pill tg">CCU</span>
+              </div>
+              <div class="cap-stat-val" style="color:var(--green);">15.000 – 60.000+</div>
+              <div class="cap-stat-sub">
+                <b>15k–25k CCU</b> (Baseline 2 ECs)<br>
+                <b>Up to 60.000 CCU</b> khi Auto Scaling kích hoạt thêm 2 ECs.
+              </div>
+            </div>
+
+            <!-- Metric 2: Throughput RPS -->
+            <div class="cap-stat-box c-cyan">
+              <div class="cap-stat-title">
+                <span>Throughput (RPS)</span>
+                <span class="bom-pill tc">SPEED</span>
+              </div>
+              <div class="cap-stat-val" style="color:var(--cyan);">2.200 – 8.000</div>
+              <div class="cap-stat-sub">
+                <b>2.200–3.500 RPS</b> (Baseline)<br>
+                <b>Peak 8.000 RPS</b>
+              </div>
+            </div>
+
+            <!-- Metric 3: DAU & MAU -->
+            <div class="cap-stat-box c-amber">
+              <div class="cap-stat-title">
+                <span>Quy Mô User Thực Tế</span>
+                <span class="bom-pill ta">SCALE</span>
+              </div>
+              <div class="cap-stat-val" style="color:var(--amber);">500K DAU | 3M MAU</div>
+              <div class="cap-stat-sub">
+                Tối ưu cho tỷ lệ 90% Read / 10% Write của mạng xã hội/diễn đàn. S3 media 1TB.
+              </div>
+            </div>
+
+            <!-- Metric 4: WebSocket Realtime -->
+            <div class="cap-stat-box c-purple">
+              <div class="cap-stat-title">
+                <span>Live WebSockets</span>
+                <span class="bom-pill"
+                  style="border-color:#c084fc;color:#c084fc;background:rgba(192,132,252,0.15);">REALTIME</span>
+              </div>
+              <div class="cap-stat-val" style="color:#c084fc;">30.000 – 50.000</div>
+              <div class="cap-stat-sub">
+                Duy trì kết nối đồng thời Live Notification qua ELB L4 và Redis Pub/Sub.
+              </div>
+            </div>
+          </div>
+
+          <!-- Technical load absorption mechanism -->
+          <div class="cap-tech-box">
+            <div
+              style="font-family:var(--mono);font-size:10.5px;font-weight:700;color:var(--ink3);text-transform:uppercase;margin-bottom:3px;">
+              ⚡ Cơ Chế Hấp Thụ Tải Cực Hạn (Load Shielding Architecture)
+            </div>
+            <div class="cap-tech-item">
+              <div class="cap-tech-bullet"></div>
+              <div><b>Redis Cache hấp thụ triệt để polling unread counter &amp; Socket Pub/Sub</b>: Giải phóng MongoDB
+                khỏi các lệnh đếm đắt đỏ.</div>
+            </div>
+            <div class="cap-tech-item">
+              <div class="cap-tech-bullet" style="background:var(--cyan);"></div>
+              <div><b>PostgreSQL SSD NVMe &amp; Index tối ưu</b>: Truy vấn feed/comments &lt;8ms qua Private VPC;
+                MongoDB ghi log bất đồng bộ.</div>
+            </div>
+            <div class="cap-tech-item">
+              <div class="cap-tech-bullet" style="background:var(--amber);"></div>
+              <div><b>Stateless Backend + Auto Scaling</b>: Tự động kích hoạt thêm 2 ECs <code>c6.2xlarge.1</code> chỉ
+                trong 2 phút khi tải đỉnh.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cột phải: Phân khúc doanh nghiệp phù hợp -->
+        <div class="fit-column">
+          <div class="ctitle" style="color:var(--cyan);margin-bottom:8px;">🎯 2. Phân Khúc Doanh Nghiệp Mục Tiêu
+            (Business Fit)</div>
+
+          <!-- Phân khúc 1: Growth Startup (Best Match) -->
+          <div class="fit-card"
+            style="border-color:rgba(0,229,255,0.3);background:linear-gradient(135deg,rgba(0,229,255,0.06),rgba(17,24,39,0.85));">
+            <div class="fit-header">
+              <div class="fit-title">🚀 Growth-Stage Startups (Vòng Tăng Trưởng Series A - B)</div>
+              <span class="fit-badge fb-star">★ PHÙ HỢP NHẤT</span>
+            </div>
+            <div class="fit-body">
+              <b>Đối tượng:</b> Các ứng dụng Mạng xã hội, Diễn đàn thế hệ mới, EdTech, Game Portal, App tin tức đã qua
+              giai đoạn MVP và cần scale nhanh.<br>
+              <b>Lợi ích:</b> Chi phí cực rẻ (<b>~12.47M VNĐ/tháng ≈ $500 USD</b>) giúp tối ưu runway vốn gọi được,
+              nhưng kiến trúc đã đạt chuẩn <b>Production HA</b>, sẵn sàng đón nhận hàng triệu user mà không lo sập hệ
+              thống.
+            </div>
+          </div>
+
+          <!-- Phân khúc 2: SMEs chuyển đổi số -->
+          <div class="fit-card">
+            <div class="fit-header">
+              <div class="fit-title">🏢 SMEs Chuyển Đổi Số &amp; E-Commerce / D2C</div>
+              <span class="fit-badge fb-sme">PHÙ HỢP CAO</span>
+            </div>
+            <div class="fit-body">
+              <b>Đối tượng:</b> Doanh nghiệp bán lẻ, chuỗi dịch vụ, cổng chăm sóc khách hàng (CRM/Loyalty Portal) cần
+              hoạt động 24/7/365.<br>
+              <b>Lợi ích:</b> Bảo mật phòng thủ chiều sâu với <b>VPC 3 subnets + pfSense Firewall</b>, lưu trữ dữ liệu
+              100% tại Việt Nam tuân thủ <b>Nghị định 13/2023/NĐ-CP</b>, có SLA 99.99%.
+            </div>
+          </div>
+
+          <!-- Phân khúc 3: Enterprise Spin-off -->
+          <div class="fit-card">
+            <div class="fit-header">
+              <div class="fit-title">🏛️ Enterprise Innovation Hub / Spin-off Projects</div>
+              <span class="fit-badge fb-ent">SANDBOX / DỰ ÁN MỚI</span>
+            </div>
+            <div class="fit-body">
+              <b>Đối tượng:</b> Tập đoàn tài chính, ngân hàng, bán lẻ cần thử nghiệm ra mắt sản phẩm số mới độc lập với
+              hệ thống Core nội bộ.<br>
+              <b>Lợi ích:</b> Tận dụng Data Center Tân Thuận đạt chuẩn quốc tế <b>TVRA &amp; PCI-DSS</b> với CapEx = 0đ.
+            </div>
+          </div>
+
+          <!-- Ghi chú định vị -->
+          <div
+            style="font-size:11px;color:var(--ink3);line-height:1.45;padding:7px 11px;background:rgba(8,12,20,0.6);border:1px dashed rgba(255,255,255,0.12);border-radius:8px;">
+            💡 <b>Định vị:</b> Không thiết kế cho dự án sinh viên/cá nhân 0 user (chỉ cần 1 VPS 200k) và không cồng kềnh
+            như hệ thống ngân hàng lớn. Đây là <b>"Điểm Ngọt" (Sweet Spot)</b>: Chi phí SME nhưng năng lực chịu tải cấp
+            Enterprise!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S21 PERSUASION PITCH ══ -->
+    <div class="slide" id="s21">
+      <div class="lbl am">Why Choose Us?</div>
+      <h2 style="margin-bottom:12px;">Tại sao khách hàng nên chọn <span class="am">thiết kế này</span>?</h2>
+
+      <div class="grid2" style="flex:1;align-items:start;gap:20px;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="note noteg">
+            <strong>Hiệu năng đỉnh cao</strong>: PostgreSQL được giải phóng khỏi gánh nặng ghi logs và đếm thông báo
+            chưa xem liên tục. Thời gian phản hồi trang đếm thông báo &lt;1ms nhờ Redis RAM Cache.
+          </div>
+          <div class="note notec">
+            <strong>Khả năng co giãn vô hạn</strong>: Thiết kế stateless cùng với bộ cân bằng tải ELB lớp 4 và đồng bộ
+            Redis Pub/Sub giúp hệ thống tự động mở rộng không giới hạn mà không mất kết nối Socket.io.
+          </div>
+          <div class="note notea">
+            <strong>Bảo mật chuẩn Enterprise</strong>: Toàn bộ cơ sở dữ liệu được đặt tại Isolated Subnet, không có IP
+            public, loại bỏ hoàn toàn khả năng bị scan cổng hay tấn công trực tiếp từ Internet.
+          </div>
+        </div>
+
+        <div class="card panel" style="padding:22px;display:flex;flex-direction:column;gap:12px;">
+          <h4 style="font-family:var(--disp);font-size:18px;font-weight:700;color:var(--ink);">Kiến Trúc Đã Được Kiểm
+            Nghiệm Toàn Diện</h4>
+          <p style="font-size:14px;line-height:1.75;color:var(--ink2);">
+            Toàn bộ thiết lập này không còn nằm trên giấy thuyết trình nữa. Tất cả các ca kiểm thử tích hợp (integration
+            tests), từ cơ chế đồng bộ Pub/Sub của Redis, bộ đệm đếm số lượng chưa đọc, đến việc ép giao thức WebSocket
+            vượt qua Public ELB đã được <strong>cấu hình và kiểm thử thành công 100%</strong> trên môi trường CMC Cloud
+            của dự án.
+          </p>
+          <h4
+            style="font-family:var(--disp);font-size:16px;font-weight:700;color:var(--green-d);margin-top:10px;text-align:center;">
+            SẴN SÀNG BÀN GIAO &amp; VẬN HÀNH</h4>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ S22 FUTURE EXPANSION ROADMAP ══ -->
+    <div class="slide" id="s22">
+      <div class="lbl cy">Scalability Roadmap</div>
+      <h2 style="margin-bottom:10px;">Khả Năng Mở Rộng <span class="cy">Trong Tương Lai</span></h2>
+
+      <!-- Phase timeline -->
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+
+        <!-- Phase 1 -->
+        <div class="card panel" style="flex:1;padding:16px 18px;border:1px solid rgba(34,211,238,0.35);position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:linear-gradient(180deg,var(--cyan),transparent);"></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:2px;margin-bottom:6px;">GIAI ĐOẠN 1 · HIỆN TẠI</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px;">Auto Scaling Group</div>
+          <div style="font-size:11px;color:var(--ink2);line-height:1.6;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">🖥️ <span>2 ECs Backend <b style="color:var(--cyan);">→ +2 ECs</b> khi CPU &gt; 70%</span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">⚡ <span>Thời gian co giãn: <b style="color:var(--green-d);">2 phút</b></span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">👥 <span>Chịu tải: <b style="color:var(--cyan);">15k – 60k CCU</b></span></div>
+            <div style="display:flex;align-items:center;gap:6px;">💰 <span>Chi phí cao điểm thêm: <b style="color:var(--amber);">~463k VNĐ/tháng</b></span></div>
+          </div>
+          <div style="margin-top:12px;padding:6px 10px;background:rgba(34,211,238,0.08);border-radius:6px;font-size:10px;color:var(--cyan);text-align:center;font-weight:600;">KHÔNG CẦN ĐỔI CODE</div>
+        </div>
+
+        <!-- Arrow -->
+        <div style="display:flex;align-items:center;color:var(--ink3);font-size:22px;padding-top:20px;">▶</div>
+
+        <!-- Phase 2 -->
+        <div class="card panel" style="flex:1.15;padding:16px 18px;border:1px solid rgba(34,197,94,0.35);position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:linear-gradient(180deg,var(--green),transparent);"></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--green-d);letter-spacing:2px;margin-bottom:6px;">GIAI ĐOẠN 2 · TRUNG HẠN</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px;">Read Replica &amp; CDN</div>
+          <div style="font-size:11px;color:var(--ink2);line-height:1.6;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">🗄️ <span><b style="color:var(--green-d);">PostgreSQL Read Replica</b>: SELECT → Replica, INSERT → Master</span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">🌐 <span><b style="color:var(--green-d);">CMC CDN</b> tại HCM, HN, ĐN, CT → giảm 90% băng thông</span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">📈 <span>Năng lực DB tăng <b style="color:var(--green-d);">gấp 3 lần</b> không downtime</span></div>
+            <div style="display:flex;align-items:center;gap:6px;">👥 <span>Chịu tải: <b style="color:var(--green-d);">100k – 250k CCU</b></span></div>
+          </div>
+          <div style="margin-top:12px;padding:6px 10px;background:rgba(34,197,94,0.08);border-radius:6px;font-size:10px;color:var(--green-d);text-align:center;font-weight:600;">KHI USER TĂNG GẤP 4-5 LẦN</div>
+        </div>
+
+        <!-- Arrow -->
+        <div style="display:flex;align-items:center;color:var(--ink3);font-size:22px;padding-top:20px;">▶</div>
+
+        <!-- Phase 3 -->
+        <div class="card panel" style="flex:1.25;padding:16px 18px;border:1px solid rgba(245,158,11,0.35);position:relative;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:linear-gradient(180deg,var(--amber),transparent);"></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--amber);letter-spacing:2px;margin-bottom:6px;">GIAI ĐOẠN 3 · DÀI HẠN</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px;">Kubernetes CKE + Multi-Region</div>
+          <div style="font-size:11px;color:var(--ink2);line-height:1.6;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">☸️ <span><b style="color:var(--amber);">CMC Kubernetes (CKE)</b> + HPA co giãn tính bằng <b>giây</b></span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">🏢 <span>Chuyển đổi EC2 → K8s Pods: <b style="color:var(--amber);">vài ngày cấu hình Helm</b></span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">🛡️ <span><b>Multi-Region DR</b>: HCM (Tân Thuận) ↔ HN (Duy Tân) qua CMC CVCS</span></div>
+            <div style="display:flex;align-items:center;gap:6px;">👥 <span>Chịu tải: <b style="color:var(--amber);"> &gt;500k CCU</b></span></div>
+          </div>
+          <div style="margin-top:12px;padding:6px 10px;background:rgba(245,158,11,0.08);border-radius:6px;font-size:10px;color:var(--amber);text-align:center;font-weight:600;">BACKEND ĐÃ STATELESS → MIGRATION DỄ DÀNG</div>
+        </div>
+      </div>
+
+      <!-- Quick Wins bottom row -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div style="padding:10px 14px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);border-radius:8px;">
+          <div style="font-size:10px;color:var(--cyan);font-weight:700;margin-bottom:4px;">⚡ QUICK WIN #1</div>
+          <div style="font-size:11px;color:var(--ink2);line-height:1.5;"><b style="color:var(--ink);">Feed Caching Redis</b> — thêm 5 dòng code cache danh sách bài viết hot/new → hệ thống đạt <b style="color:var(--cyan);">12.000 RPS</b></div>
+        </div>
+        <div style="padding:10px 14px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:8px;">
+          <div style="font-size:10px;color:var(--green-d);font-weight:700;margin-bottom:4px;">⚡ QUICK WIN #2</div>
+          <div style="font-size:11px;color:var(--ink2);line-height:1.5;"><b style="color:var(--ink);">Nginx Microcaching</b> — proxy_cache 2-5s cho public feed tại DMZ → chặn thêm 30% request</div>
+        </div>
+        <div style="padding:10px 14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;">
+          <div style="font-size:10px;color:var(--amber);font-weight:700;margin-bottom:4px;">🏆 KẾT LUẬN</div>
+          <div style="font-size:11px;color:var(--ink2);line-height:1.5;">Kiến trúc <b style="color:var(--ink);">không có rào cản mở rộng</b> — từ 60k lên 500k+ CCU chỉ qua cấu hình, không viết lại code</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /deck -->
+
+  <nav class="nav">
+    <button class="nbtn" onclick="go(-1)">&#8592;</button>
+    <div class="dots" id="dots"></div>
+    <span class="ncnt" id="cnt">1 / 22</span>
+    <button class="nbtn" onclick="go(1)">&#8594;</button>
+  </nav>
+  <div class="kbhint">← → keys</div>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const N = slides.length;
+    let cur = 0;
+    const dotsEl = document.getElementById('dots');
+    const cntEl = document.getElementById('cnt');
+    const prog = document.getElementById('progress');
+
+    for (let i = 0; i < N; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i === 0 ? ' on' : '');
+      d.onclick = () => goTo(i);
+      dotsEl.appendChild(d);
+    }
+
+    function goTo(n) {
+      slides[cur].classList.remove('active');
+      dotsEl.children[cur].classList.remove('on');
+      cur = Math.max(0, Math.min(n, N - 1));
+      slides[cur].classList.add('active');
+      dotsEl.children[cur].classList.add('on');
+      cntEl.textContent = (cur + 1) + ' / ' + N;
+      prog.style.width = ((cur + 1) / N * 100) + '%';
+    }
+    function go(d) { goTo(cur + d); }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(-1);
+      if (e.key === 'Home') goTo(0);
+      if (e.key === 'End') goTo(N - 1);
+    });
+
+    function createParticles() {
+      const bg = document.getElementById('cyber-bg');
+      if (!bg) return;
+      const count = 35;
+      const colors = ['var(--green)', 'var(--cyan)', 'var(--red)', 'var(--amber)'];
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.width = p.style.height = (Math.random() * 3 + 2) + 'px';
+        p.style.setProperty('--color', colors[Math.floor(Math.random() * colors.length)]);
+        p.style.setProperty('--delay', (Math.random() * -20) + 's');
+        p.style.setProperty('--duration', (Math.random() * 12 + 8) + 's');
+        p.style.setProperty('--drift', (Math.random() * 120 - 60) + 'px');
+        bg.appendChild(p);
+      }
+    }
+    createParticles();
+
+    // Mouse movement tracking for neon aura
+    document.addEventListener('mousemove', e => {
+      const x = e.clientX;
+      const y = e.clientY;
+      document.documentElement.style.setProperty('--mx', `${x}px`);
+      document.documentElement.style.setProperty('--my', `${y}px`);
+    });
+
+    goTo(0);
+  </script>
+</body>
+
+</html>
