@@ -1,0 +1,39 @@
+Ghi chú :
+-code mới để push docker image ở folder banking-demo-with-plinko
+-file yaml mới ở cmc/banking-demo/services
+Các lỗi gặp tuần K8S
+
+1. build image trên macos, khi worker node( mặc định là ubuntu pull về chạy), thì báo lỗi sai kiến trúc 
+2.TLS bằng tạo cert với domain của MATBAO https://harbor.cmc-cloud-hcm1.cloud/ cho Harbor 
+3. runs-on: self-hosted (thay vì dùng github host để chạy lệnh, thì dùng một host tự chạy nằm chung subnet với ec chứa ấy)
+
+4. CI done (push code -> build image -> push to harbor registry)
+
+
+Note về việc tạo habor registry
+1. Bảo mật tuyệt đối & Cô lập Hạ tầng (Air-gapped & Security)
+Mạng nội bộ (Private VPC/On-Premises): Lưu trữ hoàn toàn bên trong tường lửa công ty. Điều này cho phép triển khai trong môi trường Air-gapped (cô lập hoàn toàn với Internet), loại bỏ nguy cơ lộ mã nguồn thương mại.
+Chính sách chặn Deploy (Gatekeeping): Tự động quét lỗ hổng (CVE). Nếu phát hiện lỗi bảo mật mức độ High/Critical, hệ thống sẽ tự động khóa, không cho phép kéo (pull) image đó vào môi trường Production.
+Ký số phần mềm (Image Signing): Tích hợp công cụ ký số (Notary/Cosign) để đảm bảo tính toàn vẹn của image, tránh rủi ro bị chèn mã độc trong chuỗi cung ứng (Software Supply Chain).
+2. Quản lý Định danh & Phân quyền Tập trung (IAM/RBAC)
+Tích hợp SSO doanh nghiệp: Kết nối trực tiếp với hệ thống quản lý định danh hiện có của công ty như LDAP, Active Directory, Okta, Keycloak hoặc Azure AD.
+Phân quyền phân cấp sâu: Quản lý quyền hạn chi tiết đến từng nhóm dự án, từng người dùng hoặc Service Account theo đúng nguyên tắc đặc quyền tối thiểu (Least Privilege).
+3. Hiệu năng Cao & Kiểm soát Chi phí Băng thông
+Không bị hạn chế lượt pull (Rate Limit): Loại bỏ hoàn toàn rủi ro hệ thống CI/CD hoặc cluster Kubernetes bị tắc nghẽn do dính giới hạn lượt kéo từ các Cloud Registry công cộng.
+Tốc độ deploy vượt trội: Kéo image qua mạng LAN nội bộ hoặc đường truyền riêng (Direct Connect/VPC Peering) nhanh hơn gấp nhiều lần so với tải qua Internet.
+Tối ưu chi phí Egress: Giảm thiểu đáng kể chi phí băng thông đường truyền ra ngoài (Data Egress) khi hệ thống kéo hàng nghìn container mới mỗi ngày.
+4. Quản trị Dữ liệu & Tuân thủ Pháp lý (Compliance & Governance)
+Đồng bộ đa vùng (Geo-replication): Tự động sao chép image giữa các Trung tâm dữ liệu (Datacenter) ở nhiều khu vực địa lý để phục vụ phương án dự phòng sự cố (Disaster Recovery).
+Quản lý vòng đời (Lifecycle & Retention): Cấu hình tự động dọn dẹp các tag rác/build thử nghiệm để tiết kiệm dung lượng, đồng thời bật chế độ Immutable Tags để ngăn chặn việc ghi đè lên các phiên bản đã phát hành.
+Đáp ứng chuẩn bảo mật: Bắt buộc đối với các ngành ngân hàng, tài chính, y tế để đáp ứng các chứng nhận quốc tế (PCI-DSS, ISO 27001, SOC 2, HIPAA) và luật lưu trữ dữ liệu nội địa.
+
+
+
+grafana: 
+admin 
+Group-hcm-01
+
+http://192.168.6.35:31650/login (vô qua thằng nào cũng được do mở nodeport)
+
+
+

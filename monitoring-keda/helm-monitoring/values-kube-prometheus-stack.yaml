@@ -1,0 +1,129 @@
+# Kube Prometheus Stack — Prometheus + Grafana (+ Alertmanager, operator)
+# Helm chart: prometheus-community/kube-prometheus-stack
+# Chỉnh namespace, additionalScrapeConfigs (banking), Grafana datasources (Loki, Tempo).
+
+namespaceOverride: monitoring
+
+# Prometheus: thêm scrape config cho banking services (KEDA dùng job name)
+prometheus:
+  prometheusSpec:
+    # Cho phép Tempo metrics-generator remote_write vào Prometheus
+    enableRemoteWriteReceiver: true
+    additionalScrapeConfigs:
+      - job_name: auth-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['auth-service.banking.svc.cluster.local:8001']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: auth-service
+      - job_name: account-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['account-service.banking.svc.cluster.local:8002']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: account-service
+      - job_name: transfer-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['transfer-service.banking.svc.cluster.local:8003']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: transfer-service
+      - job_name: notification-service
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['notification-service.banking.svc.cluster.local:8004']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: notification-service
+      # Phase 8: api-producer nhận toàn bộ HTTP API (RabbitMQ → consumers)
+      - job_name: api-producer
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['api-producer.banking.svc.cluster.local:8080']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: api-producer
+      # Kong API Gateway (Phase 5 — namespace kong)
+      - job_name: kong
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['kong-kong-admin.kong.svc.cluster.local:8001']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: kong
+      # Redis HA (Phase 5 — Bitnami metrics sidecar, namespace redis)
+      - job_name: redis
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['redis-metrics.redis.svc.cluster.local:9121']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: redis
+      # PostgreSQL HA primary (Phase 5 — Bitnami metrics sidecar, namespace postgres)
+      - job_name: postgres
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['postgres-postgresql-primary-metrics.postgres.svc.cluster.local:9187']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: postgres
+      # PostgreSQL HA read replica
+      - job_name: postgres-replica
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['postgres-postgresql-read-metrics.postgres.svc.cluster.local:9187']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: postgres-replica
+      # RabbitMQ (Phase 8 — ns rabbit, Bitnami Helm chart metrics port 9419)
+      - job_name: rabbitmq
+        metrics_path: /metrics
+        static_configs:
+          - targets: ['rabbitmq.rabbit.svc.cluster.local:9419']
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: instance
+            replacement: rabbitmq
+
+# Grafana: datasources Loki + Tempo (sửa URL nếu release name khác)
+grafana:
+  adminPassword: admin
+  # Persistence: PVC để lưu password admin, dashboards, datasources, users
+  persistence:
+    enabled: true
+    type: pvc
+    storageClassName: "monitoring-nfs"  # Sử dụng default StorageClass của cluster
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    # annotations: {}  # Thêm annotations nếu cần
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring.svc.cluster.local:3100
+      access: proxy
+      isDefault: false
+    - name: Tempo
+      type: tempo
+      url: http://tempo.monitoring.svc.cluster.local:3200
+      access: proxy
+      isDefault: false
+
+# Tùy chọn: Ingress cho Grafana (bật nếu cần, đổi host)
+  ingress:
+    enabled: true
+    ingressClassName: haproxy
+    hosts:
+      - grafana.npd-banking.co

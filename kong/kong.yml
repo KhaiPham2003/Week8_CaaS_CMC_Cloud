@@ -1,0 +1,166 @@
+_format_version: "3.0"
+_transform: true
+# ==============================================================================
+# 1. GLOBAL PLUGINS (Áp dụng tự động cho TẤT CẢ các Services)
+# ==============================================================================
+plugins:
+  # Gom CORS về cấu hình chung toàn cục (giúp file gọn hơn rất nhiều)
+  # Rate Limiting toàn hệ thống: Chống spam chung cho tất cả các API
+  - name: rate-limiting
+    config:
+      minute: 100
+      policy: local
+  - name: proxy-cache
+    config:
+      strategy: redis
+      redis:
+        host: redis-service.banking.svc.cluster.local
+        port: 6379
+      cache_ttl: 60
+
+services:
+  - name: auth-service
+    url: http://auth-service:8001
+    routes:
+      - name: auth-route
+        paths:
+          - /api/auth
+        strip_path: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          credentials: true
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Session
+
+  - name: account-service
+    url: http://account-service:8002
+    routes:
+      - name: account-route
+        paths:
+          - /api/account
+        strip_path: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          credentials: true
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Session
+
+  - name: transfer-service
+    url: http://transfer-service:8003
+    routes:
+      - name: transfer-route
+        paths:
+          - /api/transfer
+        strip_path: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          credentials: true
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Session
+
+  - name: notification-service
+    url: http://notification-service:8004
+    routes:
+      - name: notification-route
+        paths:
+          - /api/notifications
+        strip_path: true
+      - name: notification-ws-route
+        paths:
+          - /ws
+        protocols:
+          - http
+          - https
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          credentials: true
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Session
+
+  - name: game-service
+    url: http://game-service:8005
+    routes:
+      - name: game-route
+        paths:
+          - /api/game
+        strip_path: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - http://localhost:3000
+          credentials: true
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - X-Session

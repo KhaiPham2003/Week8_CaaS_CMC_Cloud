@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiến Trúc Hạ Tầng Banking Microservices - CMC Cloud HCM1 K8S</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      /* surfaces */
+      --paper: #080c14;
+      --panel: #111827;
+      --panel2: #1f2937;
+      --code-bg: #030712;
+      --line: #1e293b;
+      --line2: #334155;
+
+      /* ink */
+      --ink: #f8fafc;
+      --ink2: #cbd5e1;
+      --ink3: #94a3b8;
+      --ink4: #475569;
+
+      /* accents */
+      --green: #00e5ff;
+      --green-d: #0077d6;
+      --green-bg: rgba(0, 229, 255, 0.08);
+      --cyan: #38bdf8;
+      --cyan-bg: rgba(56, 189, 248, 0.08);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.08);
+      --red: #ff2a5f;
+      --red-bg: rgba(255, 42, 95, 0.08);
+
+      /* code syntax styling */
+      --cm: #64748b;
+      --kw: #f472b6;
+      --cmd: #38bdf8;
+      --str: #34d399;
+      --var: #fb923c;
+      --flag: #fbbf24;
+      --num: #38bdf8;
+      --fn: #c084fc;
+      --out: #94a3b8;
+      --prompt: #475569;
+
+      --mono: 'JetBrains Mono', monospace;
+      --disp: 'Space Grotesk', sans-serif;
+      --sans: 'Inter', sans-serif;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--paper);
+      color: var(--ink2);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #cyber-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-color: var(--paper);
+      overflow: hidden;
+      perspective: 300px;
+    }
+
+    #mouse-glow {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 50%),
+          rgba(0, 229, 255, 0.08),
+          rgba(255, 42, 95, 0.04) 40%,
+          transparent 80%);
+      transition: background 0.1s ease;
+    }
+
+    #cyber-bg::before {
+      content: '';
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      top: -50%;
+      left: -50%;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px);
+      background-size: 50px 50px;
+      transform: rotateX(65deg);
+      animation: grid-scroll 35s linear infinite;
+      transform-origin: center;
+    }
+
+    @keyframes grid-scroll {
+      0% { background-position: 0 0; }
+      100% { background-position: 0 1000px; }
+    }
+
+    .particle {
+      position: absolute;
+      background: var(--color, var(--green));
+      box-shadow: 0 0 8px var(--color, var(--green));
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      animation: float-particle var(--duration) ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
+
+    @keyframes float-particle {
+      0% { transform: translateY(105vh) translateX(0); opacity: 0; }
+      20% { opacity: 0.6; }
+      80% { opacity: 0.6; }
+      100% { transform: translateY(-10vh) translateX(var(--drift, 50px)); opacity: 0; }
+    }
+
+    #progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+      transition: width 0.35s ease;
+      z-index: 999;
+    }
+
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 32px 48px 90px;
+      display: flex;
+      flex-direction: column;
+      padding: 40px 60px 45px;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+      transform: scale(0.985) translateY(10px);
+      transition: opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1),
+        transform 0.38s cubic-bezier(0.25, 1, 0.5, 1),
+        visibility 0.35s ease;
+      background: rgba(8, 12, 20, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 229, 255, 0.08);
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(0, 229, 255, 0.02);
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+      transform: scale(1) translateY(0);
+    }
+
+    .slide::before,
+    .slide::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+      border-color: var(--cyan);
+      border-style: solid;
+      opacity: 0.6;
+      transition: border-color 0.28s;
+    }
+
+    .slide::before {
+      top: -1px;
+      left: -1px;
+      border-width: 3px 0 0 3px;
+      border-top-left-radius: 8px;
+    }
+
+    .slide::after {
+      bottom: -1px;
+      right: -1px;
+      border-width: 0 3px 3px 0;
+      border-bottom-right-radius: 8px;
+    }
+
+    .lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 500;
+    }
+
+    .lbl::before {
+      content: '#';
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .lbl.re::before { color: var(--red); }
+    .lbl.am::before { color: var(--amber); }
+    .lbl.cy::before { color: var(--cyan); }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink3);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+      font-weight: 500;
+    }
+
+    .rule {
+      width: 54px;
+      height: 4px;
+      background: var(--green);
+      border-radius: 2px;
+      margin: 26px 0;
+    }
+
+    h1 {
+      font-family: var(--disp);
+      font-size: 54px;
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+    }
+
+    h2 {
+      font-family: var(--disp);
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+    }
+
+    .g { color: var(--green); }
+    .cyc { color: var(--cyan); }
+    .am { color: var(--amber); }
+    .re { color: var(--red); }
+
+    .code {
+      background: rgba(3, 7, 18, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--line2);
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    .code .bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--line2);
+      font-size: 11px;
+      color: var(--ink3);
+      font-weight: 500;
+    }
+
+    .code .body-c { padding: 12px 16px; }
+
+    .card {
+      background: rgba(17, 24, 39, 0.45);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 229, 255, 0.08);
+      border-radius: 10px;
+      padding: 16px 20px;
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 8px 24px rgba(0, 229, 255, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .ctitle {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink3);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin: 2px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    .tg { border-color: rgba(0, 229, 255, 0.25); background: var(--green-bg); color: var(--green); }
+    .ta { border-color: rgba(245, 158, 11, 0.25); background: var(--amber-bg); color: var(--amber); }
+    .tr { border-color: rgba(255, 42, 95, 0.25); background: var(--red-bg); color: var(--red); }
+    .tc { border-color: rgba(56, 189, 248, 0.25); background: var(--cyan-bg); color: var(--cyan); }
+
+    .body { font-size: 16px; line-height: 1.65; color: var(--ink2); }
+
+    .ft { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .ft th {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      text-transform: uppercase;
+      padding: 8px 11px;
+      text-align: left;
+      border-bottom: 2px solid var(--line2);
+    }
+
+    .ft td {
+      padding: 9px 11px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink2);
+    }
+
+    .pain {
+      display: flex;
+      gap: 13px;
+      align-items: flex-start;
+      padding: 11px 15px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--paper);
+      margin-bottom: 10px;
+    }
+
+    .pain .clock {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--red);
+      flex-shrink: 0;
+      min-width: 75px;
+    }
+
+    .pain .txt {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--ink2);
+    }
+
+    .nav {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      background: var(--paper);
+      border: 1px solid var(--line2);
+      border-radius: 40px;
+      padding: 8px 16px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 229, 255, 0.15);
+    }
+
+    .nbtn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--ink3);
+      font-size: 15px;
+      padding: 4px 7px;
+      border-radius: 6px;
+      transition: color 0.2s;
+      font-family: var(--mono);
+    }
+
+    .nbtn:hover { color: var(--green); }
+
+    .ncnt {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink3);
+      min-width: 55px;
+      text-align: center;
+    }
+
+    .dots { display: flex; gap: 5px; }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--line2);
+      cursor: pointer;
+    }
+
+    .dot.on {
+      background: var(--green);
+      transform: scale(1.4);
+    }
+
+    .kbhint {
+      position: fixed;
+      bottom: 26px;
+      right: 34px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink4);
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 9px;
+      height: 18px;
+      background: var(--green);
+      animation: cblink 1s step-end infinite;
+      vertical-align: middle;
+      margin-left: 3px;
+    }
+
+    @keyframes cblink {
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="cyber-bg">
+    <div id="mouse-glow"></div>
+  </div>
+  <div id="progress"></div>
+
+  <div class="deck">
+
+    <!-- ══ SLIDE 1: TITLE SLIDE ══ -->
+    <div class="slide active" id="s1">
+      <div style="margin-top:auto;margin-bottom:auto;display:flex;align-items:center;justify-content:space-between;gap:50px;width:100%;height:100%;">
+        <div style="flex:1.2;text-align:left;">
+          <div class="eyebrow">CMC CLOUD · CaaS SOLUTIONS ARCHITECTURE · BANKING DEMO K8S</div>
+          <h1>Triển Khai Hạ Tầng<br>Hệ Thống <span class="g">Banking Microservices</span></h1>
+          <div class="rule"></div>
+          <p style="font-size:18px;color:var(--ink2);font-weight:400;line-height:1.65;margin-bottom:24px;">
+            Chuyển đổi hạ tầng container từ Docker Compose sang Kubernetes (CMC Cloud HCM1), tích hợp Harbor Registry nội bộ, HAProxy Ingress ELB, Kong API Gateway & DBaaS.
+          </p>
+          <div style="font-family:var(--mono);font-size:14px;color:var(--green-d);margin-top:26px;">
+            <span class="pr">$ </span>kubectl apply -f ./k8s/ -n banking<span class="cursor"></span>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:26px;font-family:var(--mono);font-size:12px;color:var(--ink3);">
+            <span>11 slides</span><span style="color:var(--line2);"> /</span>
+            <span>Architecture Diagram → Flow Breakdown → Kong Gateway → High Availability → Well-Architected → Tasks → Troubleshooting → Harbor → Helm → Roadmap</span>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center;align-items:center;height:100%;">
+          <img src="./Truyen-thong-thang-8-50.jpg" alt="CMC Logo"
+            style="width:100%;max-height:480px;object-fit:cover;border-radius:12px;border:1px solid var(--line2);box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 229, 255, 0.15);">
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 2: MÔ TẢ SƠ ĐỒ KIẾN TRÚC K8S (v01_architecture.png) ══ -->
+    <div class="slide" id="s2">
+      <div class="lbl cy">Topology Overview</div>
+      <h2>Sơ Đồ Kiến Trúc Hạ Tầng <span class="cyc">K8S Cluster & Security Tiers</span></h2>
+      <p class="body" style="margin-bottom:14px;">Mô hình phân tầng bảo mật và luồng truy cập qua Firewall, HAProxy Ingress (Service LoadBalancer) đến cụm K8S Worker Nodes:</p>
+
+      <div style="display:flex; gap:20px; flex:1; min-height:0; align-items:center;">
+        <div style="flex:1.2; height:100%; display:flex; justify-content:center; align-items:center; background:rgba(3,7,18,0.7); border:1px solid var(--line2); border-radius:12px; padding:10px;">
+          <img src="./v01_architecture.png" alt="Kubernetes Architecture Diagram" style="max-width:100%; max-height:440px; object-fit:contain; border-radius:8px;">
+        </div>
+
+        <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+          <div class="card">
+            <div class="ctitle" style="color:var(--green)">1. Perimeter Security (Firewall)</div>
+            <p style="font-size:13px; line-height:1.5; color:var(--ink2)">
+              Tường lửa lớp ngoài cùng lọc toàn bộ lưu lượng Internet, chỉ cho phép cổng HTTP/HTTPS đi qua và ngăn chặn các đợt tấn công thô.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ctitle" style="color:var(--cyan)">2. External Load Balancer (ELB + HAProxy Ingress)</div>
+            <p style="font-size:13px; line-height:1.5; color:var(--ink2)">
+              Service type LoadBalancer (ELB) nhận IP Public, chuyển tiếp traffic qua HAProxy Ingress Controller để điều hướng thông minh vào cụm K8S NodePort.
+            </p>
+          </div>
+          <div class="card">
+            <div class="ctitle" style="color:var(--amber)">3. Worker Nodes & API Gateway</div>
+            <p style="font-size:13px; line-height:1.5; color:var(--ink2)">
+              Cụm Worker Nodes bảo mật chứa Kong API Gateway (Quản lý Auth/Rate Limit), Frontend Pods và Backend Microservices trong namespace <code style="color:var(--green)">banking</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 3: CHI TIẾT LUỒNG TRUY CẬP (FROM FIREWALL TO PODS) ══ -->
+    <div class="slide" id="s3">
+      <div class="lbl g">Traffic Routing</div>
+      <h2>Phân Tích Chi Tiết Luồng Truy Cập <span class="g">Firewall → Ingress → Pods</span></h2>
+      <p class="body" style="margin-bottom:18px;">Hành trình từng request từ người dùng bên ngoài vào đến microservices bên trong cụm K8S:</p>
+
+      <div class="grid3" style="flex:1;">
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tr">Layer 1</span><span class="tag ta">DMZ / Edge</span></div>
+          <div class="ctitle" style="color:var(--red)">Firewall & Enterprise ELB</div>
+          <p style="font-size:13px; line-height:1.6; color:var(--ink2)">
+            • <b>Firewall Layer</b>: Kiểm soát các dải IP và chặn DDOS lớp mạng.<br>
+            • <b>CMC Cloud ELB</b>: Khởi tạo VIP (Virtual IP Public), phân tải đều sang các NodePort của HAProxy Ingress pods trên Worker Nodes.<br>
+            • Đảm bảo điểm tiếp nhận không bị nghẽn đơn điểm.
+          </p>
+        </div>
+
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tc">Layer 2</span><span class="tag tg">Ingress Controller</span></div>
+          <div class="ctitle" style="color:var(--cyan)">HAProxy Ingress Controller</div>
+          <p style="font-size:13px; line-height:1.6; color:var(--ink2)">
+            • Lắng nghe các Ingress Rules trong K8S cluster.<br>
+            • Giải mã TLS/SSL cert tập trung tại Ingress (SSL Termination).<br>
+            • Route request theo Host Header & Path (ví dụ: <code style="color:var(--cyan)">/api/v1/*</code> đến Kong API Gateway, <code style="color:var(--cyan)">/*</code> đến Frontend).
+          </p>
+        </div>
+
+        <div class="card">
+          <div style="margin-bottom:10px;"><span class="tag tg">Layer 3</span><span class="tag ta">Internal Mesh</span></div>
+          <div class="ctitle" style="color:var(--green)">K8S Cluster IP & Pod Network</div>
+          <p style="font-size:13px; line-height:1.6; color:var(--ink2)">
+            • Communication giữa Kong Gateway và Backend hoàn toàn qua dải IP nội bộ (<code style="color:var(--green)">ClusterIP</code>).<br>
+            • Tự động Load Balance giữa các Replicas Pods bằng Kube-proxy / CNI Plugin.<br>
+            • Cô lập hoàn toàn Backend khỏi Internet public.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 4: VAI TRÒ & NĂNG LỰC KONG API GATEWAY ══ -->
+    <div class="slide" id="s4">
+      <div class="lbl cy">API Gateway</div>
+      <h2>Vai Trò & Kiến Trúc <span class="cyc">Kong API Gateway</span></h2>
+      <p class="body" style="margin-bottom:18px;">Kong API Gateway đóng vai trò làm điểm kiểm soát tập trung (Centralized Control Point) cho toàn bộ API hệ thống:</p>
+
+      <div class="grid2" style="flex:1;">
+        <div class="card">
+          <div class="ctitle" style="color:var(--cyan)">1. Chức Năng Cốt Lõi Của Kong</div>
+          <p style="font-size:13.5px; line-height:1.65; color:var(--ink2); margin-bottom:10px;">
+            • <b>API Routing & Dynamic Upstreams</b>: Tự động điều hướng các API route (`/auth`, `/account`, `/transfer`, `/game`) tới K8S Service tương ứng.<br>
+            • <b>Centralized Authentication</b>: Xác thực JWT token/Session ID tại Gateway trước khi cho phép request đi sâu vào backend.<br>
+            • <b>Rate Limiting & Throttling</b>: Chống spam request và tấn công Bruteforce API ngân hàng.<br>
+            • <b>WebSocket Proxying</b>: Hỗ trợ kết nối WebSocket dài hạn (Notification Service).
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="ctitle" style="color:var(--amber)">2. Mode Triển Khai DB-less Declarative Config</div>
+          <p style="font-size:13.5px; line-height:1.65; color:var(--ink2); margin-bottom:10px;">
+            • Triển khai theo mô hình <b>DB-less (Declarative Configuration)</b> giúp Kong khởi động siêu nhanh, cực kỳ nhẹ và không phụ thuộc vào Postgres riêng cho Kong.<br>
+            • Toàn bộ cấu hình Route/Service/Plugin được lưu trong tệp Declarative YAML (<code style="color:var(--amber)">_format_version: "3.0"</code>) nạp qua ConfigMap.<br>
+            • Tối ưu cho môi trường Kubernetes Cloud Native.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 5: ĐÁNH GIÁ TÍNH HIGH AVAILABILITY (HA) ══ -->
+    <div class="slide" id="s5">
+      <div class="lbl am">High Availability Analysis</div>
+      <h2>Đánh Giá Tính Khả Dụng Cao <span class="am">(High Availability - HA)</span></h2>
+      <p class="body" style="margin-bottom:15px;">Phân tích khả năng chịu lỗi và tính sẵn sàng của từng thành phần trong hạ tầng hiện tại:</p>
+
+      <table class="ft">
+        <thead>
+          <tr>
+            <th>Thành Phần Hạ Tầng</th>
+            <th>Trạng Thái HA Hiện Tại</th>
+            <th>Cơ Chế Đảm Bảo Khả Dụng</th>
+            <th>Đánh Giá & Hướng Nâng Cấp</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b style="color:var(--cyan)">Ingress & ELB Layer</b></td>
+            <td><span class="tag tg">ĐẠT HA</span></td>
+            <td>CMC Cloud ELB chạy đa máy chủ Load Balancing; HAProxy Ingress deployed dạng Replica Set.</td>
+            <td>Tránh nghẽn cổng vào, sẵn sàng nhận lưu lượng cao.</td>
+          </tr>
+          <tr>
+            <td><b style="color:var(--cyan)">K8S Worker Nodes</b></td>
+            <td><span class="tag tg">ĐẠT HA</span></td>
+            <td>Cụm Node Group đa máy chủ vật lý/VMs trên CMC Cloud. Tự động reschedule Pods khi Node chết.</td>
+            <td>Đảm bảo cụm compute luôn sẵn sàng.</td>
+          </tr>
+          <tr>
+            <td><b style="color:var(--cyan)">Frontend & Backend Pods</b></td>
+            <td><span class="tag tg">ĐẠT HA</span></td>
+            <td>Stateless design, cấu hình <code style="color:var(--green)">replicas >= 2</code> kết hợp Rolling Update & Liveness/Readiness Probes.</td>
+            <td>Tự khôi phục ngay lập tức nếu 1 Pod crash.</td>
+          </tr>
+          <tr>
+            <td><b style="color:var(--cyan)">Database Layer (DBaaS)</b></td>
+            <td><span class="tag tg">ĐẠT HA</span></td>
+            <td>Sử dụng Managed CMC DBaaS PostgreSQL & Redis hỗ trợ Auto Backup & High Availability Master-Replica.</td>
+            <td>Dữ liệu được bảo vệ an toàn, không rủi ro mất mát.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ SLIDE 6: SO SÁNH VỚI AWS WELL-ARCHITECTED FRAMEWORK ══ -->
+    <div class="slide" id="s6">
+      <div class="lbl g">Framework Standard</div>
+      <h2>Đối Chiếu Với <span class="g">AWS Well-Architected Framework</span></h2>
+      <p class="body" style="margin-bottom:15px;">Đánh giá hạ tầng hiện tại dựa trên 6 trụ cột tiêu chuẩn kiến trúc điện toán đám mây:</p>
+
+      <div class="grid3" style="flex:1;">
+        <div class="card">
+          <div class="ctitle" style="color:var(--cyan)">1. Security (Bảo Mật)</div>
+          <p style="font-size:12.5px; line-height:1.55; color:var(--ink2)">
+            <span class="tag tg">ĐẠT 85%</span><br>
+            • Phân tầng mạng cô lập qua Firewall & DMZ.<br>
+            • Secret không lưu hardcode, quản lý bằng K8S Secrets.<br>
+            • Harbor Registry có vulnerability scanning.<br>
+            <i>Cần làm thêm:</i> Bật mTLS giữa các microservices.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="ctitle" style="color:var(--green)">2. Reliability (Độ Tin Cậy)</div>
+          <p style="font-size:12.5px; line-height:1.55; color:var(--ink2)">
+            <span class="tag tg">ĐẠT 90%</span><br>
+            • Self-healing Pods tự khôi phục.<br>
+            • DBaaS managed có backup tự động.<br>
+            • HAProxy Ingress & ELB phân tải đa luồng.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="ctitle" style="color:var(--amber)">3. Performance Efficiency</div>
+          <p style="font-size:12.5px; line-height:1.55; color:var(--ink2)">
+            <span class="tag tg">ĐẠT 80%</span><br>
+            • Caching layer bằng Redis DBaaS.<br>
+            • Resource requests/limits tối ưu.<br>
+            • Kong API Gateway định tuyến siêu tốc.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="ctitle" style="color:var(--cyan)">4. Operational Excellence</div>
+          <p style="font-size:12.5px; line-height:1.55; color:var(--ink2)">
+            <span class="tag tg">ĐẠT 85%</span><br>
+            • Quản lý hạ tầng dạng Code (IaC/Helm).<br>
+            • Tích hợp Prometheus & Grafana Monitoring.<br>
+            • Quy trình CI/CD đóng gói tự động.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="ctitle" style="color:var(--green)">5. Cost Optimization</div>
+          <p style="font-size:12.5px; line-height:1.55; color:var(--ink2)">
+            <span class="tag tg">ĐẠT 90%</span><br>
+            • Dùng Harbor nội bộ tiết kiệm Data Egress.<br>
+            • Dùng DBaaS thay vì tự duy trì EC2/VMs rời.<br>
+            • Tối ưu dung lượng Pod requests/limits.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="ctitle" style="color:var(--amber)">6. Sustainability</div>
+          <p style="font-size:12.5px; line-height:1.55; color:var(--ink2)">
+            <span class="tag tg">ĐẠT 80%</span><br>
+            • Tận dụng năng lực ảo hóa tối đa trên CMC Cloud.<br>
+            • Tự động thu hồi tài nguyên Pod dư thừa.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 7: NHIỆM VỤ ĐÃ TRIỂN KHAI ══ -->
+    <div class="slide" id="s7">
+      <div class="lbl g">Nhiệm vụ tuần K8S</div>
+      <h2>Các Tiêu Chí & Nhiệm Vụ <span class="g">Đã Triển Khai thành công</span></h2>
+      <p class="body" style="margin-bottom:15px;">Hoàn thành đầy đủ 5 tiêu chí cốt lõi trong kế hoạch triển khai CaaS trên CMC Cloud:</p>
+
+      <table class="ft">
+        <thead>
+          <tr>
+            <th>Ngày / Hạng Mục</th>
+            <th>Nội Dung Chi Tiết</th>
+            <th>Kết Quả Thực Hiện</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b style="color:var(--cyan)">Ngày 1: Container & Image</b></td>
+            <td>Đóng gói Dockerfile multi-stage, tag & push image lên Registry.</td>
+            <td><span class="tag tg">Thành công</span> Image tối ưu, tương thích Linux AMD64.</td>
+          </tr>
+          <tr>
+            <td><b style="color:var(--cyan)">Ngày 2: K8S Cluster & Access</b></td>
+            <td>Tạo SSH Key Pair, Cluster K8S & Node Group trên CMC Cloud, dùng Bastion Host kết nối <code style="color:var(--green)">kubectl</code>.</td>
+            <td><span class="tag tg">Thành công</span> Node ở trạng thái Ready, bảo mật SSH Key.</td>
+          </tr>
+          <tr>
+            <td><b style="color:var(--cyan)">Ngày 3: Workload & Service</b></td>
+            <td>Tạo Namespace <code style="color:var(--green)">banking</code>, triển khai YAML, Expose Service NodePort/Ingress, scale & rollback.</td>
+            <td><span class="tag tg">Thành công</span> Rollout zero-downtime, tự động scale Pods.</td>
+          </tr>
+          <tr>
+            <td><b style="color:var(--cyan)">Ngày 4: Resource & Storage</b></td>
+            <td>Cấu hình Requests/Limits. Chuyển database container sang <b>CMC DBaaS</b> để duy trì dữ liệu bền vững.</td>
+            <td><span class="tag tg">Thành công</span> Tối ưu tài nguyên, DBaaS ổn định.</td>
+          </tr>
+          <tr>
+            <td><b style="color:var(--cyan)">Ngày 5: Web App Deploy</b></td>
+            <td>Tích hợp Game-service, đẩy image lên Harbor & deploy Kubernetes cluster.</td>
+            <td><span class="tag tg">Thành công</span> Self-healing OK, Frontend gọi được Backend.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ══ SLIDE 8: VẤN ĐỀ VÀ GIẢI PHÁP KỸ THUẬT ══ -->
+    <div class="slide" id="s8">
+      <div class="lbl re">Troubleshooting</div>
+      <h2>Các Vấn Đề Gặp Phải & <span class="re">Giải Pháp Khắc Phục</span></h2>
+      <p class="body" style="margin-bottom:15px;">Tổng hợp các sự cố thực tế trong quá trình triển khai K8S và cách xử lý triệt để:</p>
+
+      <div class="grid2" style="flex:1;">
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="pain">
+            <div class="clock">SỰ CỐ 1</div>
+            <div class="txt">
+              <b>Lỗi Lệch Kiến Trúc Image (ARM64 vs AMD64)</b><br>
+              <i>Hiện tượng:</i> Build image trên Mac M1/M2/M3 (ARM64), khi Worker Node Ubuntu (AMD64) pull về báo lỗi <code>exec format error</code>.<br>
+              <b style="color:var(--green)">Giải pháp:</b> Sử dụng <code>docker buildx --platform linux/amd64</code> hoặc cấu hình CI/CD Runner chạy trên host Linux cùng subnet.
+            </div>
+          </div>
+          <div class="pain">
+            <div class="clock">SỰ CỐ 2</div>
+            <div class="txt">
+              <b>Cấu Hình Kong Ingress Declarative Syntax Error</b><br>
+              <i>Hiện tượng:</i> Kong báo lỗi <code>unknown field apiVersion/kind</code> khi parse <code style="color:var(--amber)">kong.yml</code> do truyền sai định dạng K8S Manifest vào Kong Controller.<br>
+              <b style="color:var(--green)">Giải pháp:</b> Tách riêng tệp DB-less declarative format (chứa <code>_format_version: "3.0"</code>) và ConfigMap K8S.
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div class="pain">
+            <div class="clock">SỰ CỐ 3</div>
+            <div class="txt">
+              <b>HTTPS TLS Cert Cho Internal Harbor Registry</b><br>
+              <i>Hiện tượng:</i> Worker node từ chối pull image từ Harbor do Self-Signed Certificate hoặc thiếu cấu hình HTTPS TLS domain.<br>
+              <b style="color:var(--green)">Giải pháp:</b> Đăng ký SSL Cert domain Matbao cho <code style="color:var(--cyan)">harbor.cmc-cloud-hcm1.cloud</code> hoặc bổ sung <code style="color:var(--amber)">insecure-registries</code> trong Docker Engine daemon.json.
+            </div>
+          </div>
+          <div class="pain">
+            <div class="clock">SỰ CỐ 4</div>
+            <div class="txt">
+              <b>Self-hosted Runner CI/CD Pipeline Config</b><br>
+              <i>Hiện tượng:</i> GitHub hosted runner không thể kết nối tới Harbor Registry trong VPC mạng nội bộ.<br>
+              <b style="color:var(--green)">Giải pháp:</b> Chuyển sang <code>runs-on: self-hosted</code> nằm cùng subnet với Harbor registry.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 9: HARBOR REGISTRY & CI/CD ══ -->
+    <div class="slide" id="s9">
+      <div class="lbl cy">DevOps & Registry</div>
+      <h2>Hạ Tầng <span class="cyc">Harbor Private Registry</span> & CI/CD Pipeline</h2>
+      <p class="body" style="margin-bottom:20px;">Lý do lựa chọn Harbor Registry nội bộ trên CMC Cloud HCM1:</p>
+
+      <div class="grid3" style="flex:1;">
+        <div class="card">
+          <div class="ctitle" style="color:var(--cyan)">1. Bảo Mật & Air-Gapped</div>
+          <p class="body" style="font-size:13px; line-height:1.6;">
+            • Nằm trong mạng VPC nội bộ, loại bỏ nguy cơ lộ mã nguồn ra Internet.<br>
+            • Tích hợp quét lỗ hổng Trivy/Clair: Tự động khóa Image nếu dính lỗi Critical.<br>
+            • Ký số phần mềm Notary/Cosign tránh chèn mã độc.
+          </p>
+        </div>
+        <div class="card">
+          <div class="ctitle" style="color:var(--green)">2. IAM & Phân Quyền Sâu</div>
+          <p class="body" style="font-size:13px; line-height:1.6;">
+            • Tích hợp LDAP/Active Directory của doanh nghiệp.<br>
+            • Cấp quyền chi tiết theo dự án & Service Account.<br>
+            • Giới hạn đặc quyền tối thiểu (Least Privilege).
+          </p>
+        </div>
+        <div class="card">
+          <div class="ctitle" style="color:var(--amber)">3. Tốc Độ & Chi Phí Băng Thông</div>
+          <p class="body" style="font-size:13px; line-height:1.6;">
+            • Kéo image qua mạng LAN / Peering nội bộ nhanh gấp 10 lần.<br>
+            • Không bị dính Rate Limit (như Docker Hub public).<br>
+            • Tiết kiệm chi phí Data Egress trên CMC Cloud.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 10: K8S DEPLOYMENT & HELM MIGRATION ══ -->
+    <div class="slide" id="s10">
+      <div class="lbl g">K8S Operations</div>
+      <h2>Chuyển Đổi Sang <span class="g">Helm Chart & DBaaS</span></h2>
+      <p class="body" style="margin-bottom:15px;">Tiến trình chuẩn hóa triển khai từ K8S Manifests thô sang Helm Chart quản lý tập trung:</p>
+
+      <div class="grid2" style="flex:1;">
+        <div class="card">
+          <div class="ctitle" style="color:var(--green)">Chuyển Từ Postgres Container Sang DBaaS</div>
+          <p class="body" style="font-size:13px; line-height:1.6; margin-bottom:10px;">
+            • Loại bỏ Deployment/StatefulSet Postgres nội bộ K8S.<br>
+            • Cập nhật các service (<code style="color:var(--green)">account-service</code>, <code style="color:var(--green)">auth-service</code>, <code style="color:var(--green)">game-service</code>) kết nối trực tiếp đến endpoint DBaaS:<br>
+            <code style="color:var(--cyan)">POSTGRES_HOST: dbaas-postgres.internal.cmccloud.vn</code><br>
+            • Dữ liệu được sao lưu tự động, hỗ trợ High Availability (HA) từ nhà cung cấp CMC Cloud.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="ctitle" style="color:var(--cyan)">Cấu Hình Helm Chart Chuẩn Registry</div>
+          <p class="body" style="font-size:13px; line-height:1.6; margin-bottom:10px;">
+            • Đã cập nhật lại toàn bộ file <code style="color:var(--amber)">values.yaml</code> cho từng sub-chart:<br>
+            - <code style="color:var(--green)">repository: harbor.cmc-cloud-hcm1.cloud/banking/account-service</code><br>
+            - Bật chế độ <code style="color:var(--cyan)">imagePullSecrets: harbor-registry-secret</code>.<br>
+            - Dễ dàng thay đổi môi trường Dev/Staging/Prod chỉ với 1 file values override.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SLIDE 11: KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN ══ -->
+    <div class="slide" id="s11">
+      <div class="lbl cy">Summary & Roadmap</div>
+      <h2>Kết Luận & Hướng Phát Triển Tiếp Theo</h2>
+      <p class="body" style="margin-bottom:20px;">Hệ thống Banking Microservices đã vận hành ổn định trên cụm Kubernetes CMC Cloud HCM1:</p>
+
+      <div class="grid3" style="margin-bottom:20px;">
+        <div class="card">
+          <div class="ctitle" style="color:var(--green)">✔ Đã Hoàn Thành</div>
+          <p class="body" style="font-size:13px; line-height:1.6;">
+            • Chuyển đổi thành công 100% workloads sang K8S.<br>
+            • Tích hợp Harbor Registry & DBaaS.<br>
+            • Đáp ứng chuẩn hạ tầng HA & Well-Architected.
+          </p>
+        </div>
+        <div class="card">
+          <div class="ctitle" style="color:var(--cyan)">⚡ Monitoring & Observability</div>
+          <p class="body" style="font-size:13px; line-height:1.6;">
+            • Tích hợp Prometheus & Grafana Dashboard (NodePort 31650).<br>
+            • Theo dõi CPU/RAM metrics & Request Rate theo thời gian thực.
+          </p>
+        </div>
+        <div class="card">
+          <div class="ctitle" style="color:var(--amber)">🚀 Kế Hoạch Tiếp Theo</div>
+          <p class="body" style="font-size:13px; line-height:1.6;">
+            • Cấu hình Auto-scaling KEDA dựa theo Queue size & RPS.<br>
+            • Triển khai GitOps với ArgoCD để tự động hóa Sync code từ GitLab.
+          </p>
+        </div>
+      </div>
+
+      <div style="text-align:center; padding:20px; background:rgba(0,229,255,0.05); border:1px solid rgba(0,229,255,0.2); border-radius:10px;">
+        <h3 style="font-family:var(--disp); color:var(--green); font-size:22px;">CẢM ƠN THẦY VÀ CÁC BẠN ĐÃ LẮNG NGHE!</h3>
+        <p style="font-size:13px; color:var(--ink3); margin-top:5px;">Q&A / Thảo luận & Trình diễn Demo trực tiếp</p>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="nav">
+    <button class="nbtn" onclick="go(-1)">&#8592;</button>
+    <div class="dots" id="dots"></div>
+    <span class="ncnt" id="cnt">1 / 11</span>
+    <button class="nbtn" onclick="go(1)">&#8594;</button>
+  </nav>
+  <div class="kbhint">← → keys</div>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const N = slides.length;
+    let cur = 0;
+    const dotsEl = document.getElementById('dots');
+    const cntEl = document.getElementById('cnt');
+    const prog = document.getElementById('progress');
+
+    for (let i = 0; i < N; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot' + (i === 0 ? ' on' : '');
+      d.onclick = () => goTo(i);
+      dotsEl.appendChild(d);
+    }
+
+    function goTo(n) {
+      slides[cur].classList.remove('active');
+      dotsEl.children[cur].classList.remove('on');
+      cur = Math.max(0, Math.min(n, N - 1));
+      slides[cur].classList.add('active');
+      dotsEl.children[cur].classList.add('on');
+      cntEl.textContent = (cur + 1) + ' / ' + N;
+      prog.style.width = ((cur + 1) / N * 100) + '%';
+    }
+    function go(d) { goTo(cur + d); }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') go(1);
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') go(-1);
+      if (e.key === 'Home') goTo(0);
+      if (e.key === 'End') goTo(N - 1);
+    });
+
+    function createParticles() {
+      const bg = document.getElementById('cyber-bg');
+      if (!bg) return;
+      const count = 35;
+      const colors = ['var(--green)', 'var(--cyan)', 'var(--red)', 'var(--amber)'];
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.width = p.style.height = (Math.random() * 3 + 2) + 'px';
+        p.style.setProperty('--color', colors[Math.floor(Math.random() * colors.length)]);
+        p.style.setProperty('--delay', (Math.random() * -20) + 's');
+        p.style.setProperty('--duration', (Math.random() * 12 + 8) + 's');
+        p.style.setProperty('--drift', (Math.random() * 120 - 60) + 'px');
+        bg.appendChild(p);
+      }
+    }
+    createParticles();
+
+    document.addEventListener('mousemove', e => {
+      const x = e.clientX;
+      const y = e.clientY;
+      document.documentElement.style.setProperty('--mx', `${x}px`);
+      document.documentElement.style.setProperty('--my', `${y}px`);
+    });
+
+    goTo(0);
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,59 @@
+# Grafana Tempo — tracing backend nhẹ, tích hợp tốt với Grafana
+# Chart: grafana/tempo
+# Nhận OTLP trực tiếp hoặc qua OTEL Collector
+
+tempo:
+  # OTLP receiver — app/OTel Collector gửi traces về đây
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  # Giữ trace trong 24h (có thể tăng)
+  retention: 24h
+  # Metrics-generator (Span rate / Service graph).
+  # Với chart grafana/tempo, values đúng là `tempo.metricsGenerator.*` (sẽ render ra `metrics_generator.*` trong config).
+  metricsGenerator:
+    enabled: true
+    remoteWriteUrl: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write
+    storage:
+      path: /var/tempo/generator
+      # remote_write: []  # optional: dùng remoteWriteUrl nếu không set
+    traces_storage:
+      path: /var/tempo/generator-traces
+
+  # Storage: local (filesystem) — đủ cho dev/test
+  # Production nên dùng S3/GCS/MinIO
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+# Persistence — bật để giữ traces khi pod restart
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: monitoring-nfs  # bật nếu dùng NFS
+  storageClassName: monitoring-nfs
+  accessModes:
+    - ReadWriteOnce
+  mountPath: /var/tempo
+
+# Resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Service ports (default)
+# - 3100: HTTP API (Grafana datasource)
+# - 4317: OTLP gRPC
+# - 4318: OTLP HTTP
