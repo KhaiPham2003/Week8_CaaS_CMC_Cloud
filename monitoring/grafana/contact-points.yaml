@@ -1,0 +1,14 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: banking-discord
+    receivers:
+      - uid: banking-discord
+        type: discord
+        disableResolveMessage: false
+        settings:
+          url: ${DISCORD_WEBHOOK_URL}
+          use_discord_username: true
+          message: |
+            {{ template "default.message" . }}
