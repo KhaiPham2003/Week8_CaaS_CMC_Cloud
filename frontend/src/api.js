@@ -52,15 +52,11 @@ export const api = {
 
   notifications: () => req("/api/notifications/notifications"),
 
-  plinkoConfig: () => req("/api/game/plinko/config"),
-
-  plinkoPlay: (bet_amount, risk, rows) =>
-    req("/api/game/plinko/play", {
+  dropPlinko: (bet_amount, risk = "medium", rows = 10) =>
+    req("/api/game/drop", {
       method: "POST",
       body: { bet_amount: Number(bet_amount), risk, rows: Number(rows) }
     }),
 
-  plinkoHistory: () => req("/api/game/plinko/history"),
-
-  plinkoHouse: () => req("/api/game/plinko/house")
+  plinkoHistory: () => req("/api/game/history")
 };
