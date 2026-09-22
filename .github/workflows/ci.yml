@@ -130,3 +130,6 @@ jobs:
           push: true
           tags: |
             ${{ vars.HARBOR_REGISTRY }}/banking/frontend:latest
+            ${{ env.HARBOR_REGISTRY }}/banking/frontend:${{ steps.vars.outputs.sha_short }}
+          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache
+          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache,mode=max

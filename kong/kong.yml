@@ -6,6 +6,7 @@ _transform: true
 plugins:
   # Gom CORS về cấu hình chung toàn cục (giúp file gọn hơn rất nhiều)
   # Rate Limiting toàn hệ thống: Chống spam chung cho tất cả các API
+  # 2 plugins rate-liminting and proxy-cache
   - name: rate-limiting
     config:
       minute: 100
