@@ -8,7 +8,7 @@ on:
 
 env:
   HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY }} #https://harbor.cmc-cloud-hcm1.cloud/
-
+  HARBOR_PROJECT: ${{vars.HARBOR_PROJECT}} # banking
 jobs:
   # ---------------------------------------------------------------------
   # 1) Detect which services actually changed so we don't rebuild all 6
@@ -129,7 +129,7 @@ jobs:
           context: ./frontend
           push: true
           tags: |
-            ${{ vars.HARBOR_REGISTRY }}/banking/frontend:latest
-            ${{ env.HARBOR_REGISTRY }}/banking/frontend:${{ steps.vars.outputs.sha_short }}
+            ${{ vars.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:${{ steps.vars.outputs.sha_short }}
           cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache
           cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache,mode=max
