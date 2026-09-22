@@ -24,7 +24,7 @@ spec:
         - name: harbor-registry
       containers:
         - name: notification-service
-          image: harbor.cmc-cloud-hcm1.cloud/banking/notification-service:v1
+          image: harbor.cmc-cloud-hcm1.cloud/banking/notification-service:latest
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false

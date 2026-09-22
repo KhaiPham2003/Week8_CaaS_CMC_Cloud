@@ -37,7 +37,7 @@ spec:
         - name: game-service
           # Image build & push lên registry (xem hướng dẫn build/push Harbor ở tin nhắn trước).
           # Đổi thành: harbor.yourcompany.com/banking-demo/game-service:<tag>
-          image: harbor.cmc-cloud-hcm1.cloud/banking/game-service:v1
+          image: harbor.cmc-cloud-hcm1.cloud/banking/game-service:latest
           imagePullPolicy:
             Always # Luôn pull lại image mới nhất mỗi lần Pod khởi động
             # (hợp lý khi dùng tag "latest"; nếu dùng tag version cố định

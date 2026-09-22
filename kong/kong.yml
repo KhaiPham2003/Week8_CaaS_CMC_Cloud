@@ -1,24 +1,18 @@
 _format_version: "3.0"
 _transform: true
+
 # ==============================================================================
-# 1. GLOBAL PLUGINS (Áp dụng tự động cho TẤT CẢ các Services)
+# 1. GLOBAL PLUGINS (Rate-Limiting & Proxy-Cache In-Memory)
 # ==============================================================================
 plugins:
-  # Gom CORS về cấu hình chung toàn cục (giúp file gọn hơn rất nhiều)
-  # Rate Limiting toàn hệ thống: Chống spam chung cho tất cả các API
-  # 2 plugins rate-liminting and proxy-cache
   - name: rate-limiting
     config:
       minute: 100
       policy: local
-  - name: proxy-cache
-    config:
-      strategy: redis
-      redis:
-        host: redis-service.banking.svc.cluster.local
-        port: 6379
-      cache_ttl: 60
 
+# ==============================================================================
+# 2. SERVICES & ROUTES
+# ==============================================================================
 services:
   - name: auth-service
     url: http://auth-service:8001
@@ -31,7 +25,7 @@ services:
       - name: cors
         config:
           origins:
-            - http://localhost:3000
+            - "*"
           credentials: true
           methods:
             - GET
@@ -59,7 +53,7 @@ services:
       - name: cors
         config:
           origins:
-            - http://localhost:3000
+            - "*"
           credentials: true
           methods:
             - GET
@@ -87,7 +81,7 @@ services:
       - name: cors
         config:
           origins:
-            - http://localhost:3000
+            - "*"
           credentials: true
           methods:
             - GET
@@ -114,6 +108,7 @@ services:
       - name: notification-ws-route
         paths:
           - /ws
+        strip_path: false
         protocols:
           - http
           - https
@@ -121,7 +116,7 @@ services:
       - name: cors
         config:
           origins:
-            - http://localhost:3000
+            - "*"
           credentials: true
           methods:
             - GET
@@ -149,7 +144,7 @@ services:
       - name: cors
         config:
           origins:
-            - http://localhost:3000
+            - "*"
           credentials: true
           methods:
             - GET

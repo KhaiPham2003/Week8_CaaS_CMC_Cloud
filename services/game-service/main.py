@@ -1,25 +1,25 @@
-import json
 import os
 import random
+import json
 import uuid
-from contextlib import asynccontextmanager
 from typing import List
+from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from redis.asyncio import Redis
-from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy import select
+from redis.asyncio import Redis
 
-from common.db import Base, SessionLocal, engine
-from common.models import Notification, PlinkoGame, User
+from common.db import SessionLocal, engine, Base
+from common.models import User, PlinkoGame, Notification
 from common.observability import instrument_fastapi
 from common.redis_utils import get_user_id_from_session, publish_notify
 
 Base.metadata.create_all(bind=engine)
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 HOUSE_USERNAME = os.getenv("HOUSE_USERNAME", "casino_house")
 
@@ -38,9 +38,7 @@ def get_multipliers(risk: str, rows: int) -> List[float]:
     rows = max(8, min(16, rows))
     num_slots = rows + 1
 
-    # Pre-defined base multiplier curves
     if risk == "high":
-        # High risk: center drops to ~0.2x, edges soar to ~50x-100x
         multipliers = []
         for i in range(num_slots):
             dist_from_center = abs(i - (rows / 2))
@@ -62,7 +60,6 @@ def get_multipliers(risk: str, rows: int) -> List[float]:
         return multipliers
 
     elif risk == "low":
-        # Low risk: center drops to ~0.8x, edges go up to ~3x-5x
         multipliers = []
         for i in range(num_slots):
             dist_from_center = abs(i - (rows / 2))
@@ -82,7 +79,6 @@ def get_multipliers(risk: str, rows: int) -> List[float]:
         return multipliers
 
     else:
-        # Medium risk (default): center ~0.4x, edges ~10x-20x
         multipliers = []
         for i in range(num_slots):
             dist_from_center = abs(i - (rows / 2))
@@ -109,11 +105,10 @@ def _ensure_house_account(db: Session):
     ).scalar_one_or_none()
 
     if not house:
-        # Create house account
         house = User(
             username=HOUSE_USERNAME,
             password_hash="house_secret_hash_not_for_login",
-            balance=100_000_000,  # 100M initial house balance
+            balance=100_000_000,
         )
         db.add(house)
         db.commit()
@@ -124,7 +119,6 @@ async def lifespan(app: FastAPI):
     global redis
     redis = Redis.from_url(REDIS_URL, decode_responses=True)
 
-    # Ensure house account exists on startup
     db = SessionLocal()
     try:
         _ensure_house_account(db)
@@ -184,7 +178,6 @@ async def drop_ball(
             400, f"Bet amount must be between {MIN_BET:,} ₫ and {MAX_BET:,} ₫"
         )
 
-    # Atomic balance update with SELECT FOR UPDATE
     player = db.execute(
         select(User).where(User.id == user_id).with_for_update()
     ).scalar_one_or_none()
@@ -198,14 +191,12 @@ async def drop_ball(
         select(User).where(User.username == HOUSE_USERNAME).with_for_update()
     ).scalar_one_or_none()
     if not house:
-        # Fallback if house was deleted
         house = User(
             username=HOUSE_USERNAME, password_hash="secret", balance=100_000_000
         )
         db.add(house)
         db.flush()
 
-    # Generate Plinko trajectory (0 = left, 1 = right for each row)
     rows = max(8, min(16, body.rows))
     path = [random.choice([0, 1]) for _ in range(rows)]
     slot = sum(path)
@@ -214,11 +205,9 @@ async def drop_ball(
     multiplier = multipliers[slot]
     payout = int(body.bet_amount * multiplier)
 
-    # Balance transaction: player pays bet_amount, receives payout
     player.balance = player.balance - body.bet_amount + payout
     house.balance = house.balance + body.bet_amount - payout
 
-    # Record game history
     game_rec = PlinkoGame(
         user_id=player.id,
         bet_amount=body.bet_amount,
@@ -231,9 +220,9 @@ async def drop_ball(
     )
     db.add(game_rec)
 
-    # Send notification if significant payout (>= 2x bet)
-    if payout >= body.bet_amount * 2:
-        msg = f"🎉 Plinko Win! You won {payout:,} ₫ ({multiplier}x multiplier)"
+    # Gửi Notification tức thì cho MỌI lượt cược thắng (payout >= bet_amount)
+    if payout >= body.bet_amount:
+        msg = f"🎮 Plinko Game: Bạn trúng x{multiplier} và nhận {payout:,} ₫!"
         db.add(Notification(user_id=player.id, message=msg))
         db.commit()
         await publish_notify(redis, player.id, msg)
@@ -260,7 +249,6 @@ async def drop_ball(
 async def game_history(
     x_session: str | None = Header(default=None), db: Session = Depends(get_db)
 ):
-    """Get last 20 Plinko games for the logged-in user."""
     user_id = await get_user_id_from_session(redis, x_session)
     games = (
         db.execute(
@@ -290,7 +278,6 @@ async def game_history(
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
     try:
         redis_ok = False
         if redis:
