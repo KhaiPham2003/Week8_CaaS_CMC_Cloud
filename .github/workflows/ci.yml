@@ -133,3 +133,37 @@ jobs:
             ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:${{ steps.vars.outputs.sha_short }}
           cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache
           cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache,mode=max
+
+  deploy-to-k8s:
+    name: Auto-Deploy to K8s
+    needs:
+      - detect
+      - build-services
+      - build-frontend
+    if: |
+      always() &&
+      (needs.detect.outputs.matrix != '[]' || needs.detect.outputs.frontend == 'true') &&
+      !contains(join(needs.*.result, ','), 'failure') &&
+      !contains(join(needs.*.result, ','), 'cancelled')
+    runs-on: self-hosted # runner này phải có sẵn kubeconfig/context trỏ tới cluster kubernetes-prod-hcm1
+    env:
+      NAMESPACE: banking
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy changed services
+        if: needs.detect.outputs.matrix != '[]'
+        run: |
+          echo '${{ needs.detect.outputs.matrix }}' | jq -r '.[]' | while read -r svc; do
+            echo "Deploying $svc -> tag ${{ steps.vars.outputs.sha_short }}"
+            kubectl set image deployment/"$svc" "$svc"="${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${svc}:${{ steps.vars.outputs.sha_short }}" -n "${{ env.NAMESPACE }}"
+          done
+
+      - name: Deploy frontend
+        if: needs.detect.outputs.frontend == 'true'
+        run: |
+          kubectl set image deployment/frontend frontend="${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:${{ steps.vars.outputs.sha_short }}" -n "${{ env.NAMESPACE }}"
