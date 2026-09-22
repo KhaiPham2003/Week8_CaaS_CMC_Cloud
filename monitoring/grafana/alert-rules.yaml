@@ -73,3 +73,12 @@ groups:
         annotations:
           summary: "Banking HTTP 5xx error rate is above 5%"
           description: "The Banking application has had more than 5% HTTP 5xx responses for at least 5 minutes."
+
+        notification_settings:
+          receiver: banking-discord
+          group_by:
+            - grafana_folder
+            - alertname
+          group_wait: 30s
+          group_interval: 5m
+          repeat_interval: 4h
