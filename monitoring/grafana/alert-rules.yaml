@@ -1,0 +1,75 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: banking-http-alerts
+    folder: Banking
+    interval: 1m
+    rules:
+      - uid: banking-http-5xx
+        title: Banking - HTTP 5xx error rate > 5%
+        condition: B
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: ${PROMETHEUS_DATASOURCE_UID}
+            model:
+              editorMode: code
+              expr: |
+                100 *
+                (
+                  sum(rate(http_requests_total{status=~"5.."}[5m]))
+                  /
+                  clamp_min(sum(rate(http_requests_total[5m])), 0.001)
+                )
+              intervalMs: 1000
+              maxDataPoints: 43200
+              legendFormat: "5xx error rate"
+              range: true
+              refId: A
+
+          - refId: B
+            queryType: ""
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: classic_conditions
+
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+
+        labels:
+          severity: warning
+          service: banking
+          alert_type: http_5xx
+
+        annotations:
+          summary: "Banking HTTP 5xx error rate is above 5%"
+          description: "The Banking application has had more than 5% HTTP 5xx responses for at least 5 minutes."
