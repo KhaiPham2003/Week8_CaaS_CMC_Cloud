@@ -1,0 +1,10 @@
+Các tiêu chí và nhiệm vụ cần triển khai: 
+
+Ngày 1	Container & Docker cơ bản	Build và chạy một image đơn giản; tag và push image lên registry.	Dockerfile, image URL và lệnh chạy.	Image build thành công, container chạy được và giải thích được các layer cơ bản.
+Ngày 2	Kubernetes kiến trúc & truy cập cụm K8s	Tạo SSH key pair, cụm Kubernetes và node group trên CMC Cloud; dùng bastion host để kết nối và chạy lệnh kubectl.	Ảnh trạng thái cluster/node; danh sách lệnh kubectl đã sử dụng.	kubectl kết nối đúng cluster; node ở trạng thái Ready; không chia sẻ kubeconfig/credential.
+Ngày 3	Triển khai workload	Tạo namespace; triển khai Nginx bằng YAML; expose qua Service; cập nhật image; scale và rollback.	File YAML, URL truy cập và nhật ký rollout.	Ứng dụng truy cập được; scale/rollback thành công; phân biệt đúng các loại Service.
+Ngày 4	Quản lý tài nguyên & Persistent Storage	Cấu hình requests/limits cho workload. Tạo PVC sử dụng StorageClass của CMC Cloud để hệ thống tự động cấp EVS/PV, mount volume vào Pod và kiểm tra dữ liệu vẫn còn sau khi xoá/tạo lại Pod.	File YAML; kết quả kubectl get pod,pvc,pv; ảnh EVS được tạo trên CMC Cloud Portal	Requests/limits hợp lý; PVC ở trạng thái Bound; Pod mount volume thành công; dữ liệu được giữ lại sau khi Pod được tạo lại.
+Ngày 5	Bài lab nhóm: Đưa web app lên K8s	Đóng gói web app tuần 3 thành image, push registry và deploy lên Kubernetes. Kiểm tra self-healing bằng cách xoá Pod và quan sát Pod được tạo lại.	Source code, Dockerfile, manifest YAML, sơ đồ kiến trúc và demo.	Frontend gọi được backend; backend kết nối DBaaS; Secret không ghi trực tiếp trong source; ứng dụng tự phục hồi.
+
+Nội dung nâng cao: 
+Tuỳ chọn nâng cao:Auto Healing và Auto Scaling của k8s trên cmc cloud; taints/tolerations; mô phỏng OOMKilled có kiểm soát; sử dụng Elastic Volume Service qua PV/PVC.				

@@ -23,7 +23,7 @@ export default function Dashboard({ onLogout, onNavigate }) {
     const m = await api.me();
     setMe(m);
     const n = await api.notifications().catch(() => []);
-    setNotifs(Array.isArray(n) ? n : (n.items || []));
+    setNotifs(Array.isArray(n) ? n : n.items || []);
   };
 
   useEffect(() => {
@@ -49,34 +49,38 @@ export default function Dashboard({ onLogout, onNavigate }) {
     };
 
     return () => {
-      try { ws && ws.close(); } catch {}
+      try {
+        ws && ws.close();
+      } catch {}
     };
   }, [wsUrl, session]);
 
   const doTransfer = async () => {
-    setErr(""); setMsg("");
-    
+    setErr("");
+    setMsg("");
+
     // Input validation
     if (!toUser || !toUser.trim()) {
       setErr("Please enter recipient username");
       return;
     }
-    
+
     const amountNum = Number(amount);
     if (!amount || isNaN(amountNum) || amountNum <= 0) {
       setErr("Please enter a valid amount greater than 0");
       return;
     }
-    
+
     if (!Number.isInteger(amountNum)) {
       setErr("Amount must be a whole number");
       return;
     }
-    
+
     try {
       const r = await api.transfer(toUser.trim(), amountNum);
       setMsg(`Transfer success: ${r.amount} to ${r.to}`);
-      setToUser(""); setAmount("");
+      setToUser("");
+      setAmount("");
       await load();
     } catch (e) {
       setErr(e.message);
@@ -92,18 +96,26 @@ export default function Dashboard({ onLogout, onNavigate }) {
     wsStatus === "connected"
       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
       : wsStatus === "error"
-      ? "bg-red-50 text-red-700 border-red-200"
-      : "bg-slate-50 text-slate-600 border-slate-200";
+        ? "bg-red-50 text-red-700 border-red-200"
+        : "bg-slate-50 text-slate-600 border-slate-200";
 
   return (
-    <Layout user={me?.username} env="LAB" onLogout={logout} page="dashboard" onNavigate={onNavigate}>
+    <Layout
+      user={me?.username}
+      env="LAB"
+      onLogout={logout}
+      page="dashboard"
+      onNavigate={onNavigate}
+    >
       <div className="space-y-6">
         <div className="grid gap-6 md:grid-cols-3">
           <Card
             title="Account"
             desc="User & available balance"
             right={
-              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${wsBadge}`}>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${wsBadge}`}
+              >
                 Realtime: {wsStatus}
               </span>
             }
@@ -111,7 +123,9 @@ export default function Dashboard({ onLogout, onNavigate }) {
             <div className="space-y-3">
               <div>
                 <div className="text-xs text-slate-500">User</div>
-                <div className="text-sm font-semibold text-slate-900">{me?.username || "-"}</div>
+                <div className="text-sm font-semibold text-slate-900">
+                  {me?.username || "-"}
+                </div>
               </div>
               <div className="rounded-2xl bg-blue-50 p-4">
                 <div className="text-xs text-blue-700">Available balance</div>
@@ -150,29 +164,50 @@ export default function Dashboard({ onLogout, onNavigate }) {
                   Transfer
                 </button>
                 <button
-                  onClick={() => load().catch(()=>{})}
+                  onClick={() => load().catch(() => {})}
                   className="rounded-xl border px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   Refresh
                 </button>
               </div>
 
-              {msg && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{msg}</div>}
-              {err && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{err}</div>}
+              {msg && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                  {msg}
+                </div>
+              )}
+              {err && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {err}
+                </div>
+              )}
             </div>
           </Card>
 
           <Card title="Demo notes" desc="What to explain in interview">
             <ul className="list-disc pl-5 text-sm text-slate-700 space-y-2">
-              <li>Session stored in <b>Redis</b> → backend stateless</li>
-              <li>Balance & transfers stored in <b>Postgres</b></li>
-              <li>Realtime notify via <b>WebSocket</b> (Ingress supports WS)</li>
-              <li>Scale pods: notify works cross-pod using Redis pub/sub (next step)</li>
+              <li>
+                Session stored in <b>Redis</b> → backend stateless
+              </li>
+              <li>
+                Balance & transfers stored in <b>Postgres</b>
+              </li>
+              <li>
+                Realtime notify via <b>WebSocket</b> (Ingress supports WS)
+              </li>
+              <li>
+                Scale pods: notify works cross-pod using Redis pub/sub (next
+                step)
+              </li>
+              <li>Caolegiaphu</li>
             </ul>
           </Card>
         </div>
 
-        <Card title="Notifications" desc="Incoming transfer notifications (WebSocket)">
+        <Card
+          title="Notifications"
+          desc="Incoming transfer notifications (WebSocket)"
+        >
           <div className="space-y-3">
             {notifs.length === 0 && (
               <div className="rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-600">
@@ -183,9 +218,13 @@ export default function Dashboard({ onLogout, onNavigate }) {
             {notifs.map((n, idx) => (
               <div key={n.id ?? idx} className="rounded-xl border px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-slate-900">notification</div>
+                  <div className="text-sm font-semibold text-slate-900">
+                    notification
+                  </div>
                   <div className="text-xs text-slate-500">
-                    {n.created_at ? new Date(n.created_at).toLocaleString() : ""}
+                    {n.created_at
+                      ? new Date(n.created_at).toLocaleString()
+                      : ""}
                   </div>
                 </div>
                 <div className="mt-1 text-sm text-slate-700">

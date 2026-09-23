@@ -1,0 +1,155 @@
+Ghi chú :
+-code mới để push docker image ở folder banking-demo-with-plinko
+-file yaml mới ở cmc/banking-demo/services
+Các lỗi gặp tuần K8S
+
+1. build image trên macos, khi worker node( mặc định là ubuntu pull về chạy), thì báo lỗi sai kiến trúc 
+2.TLS bằng tạo cert với domain của MATBAO https://harbor.cmc-cloud-hcm1.cloud/ cho Harbor 
+3. runs-on: self-hosted (thay vì dùng github host để chạy lệnh, thì dùng một host tự chạy nằm chung subnet với ec chứa ấy)
+
+4. CI done (push code -> build image -> push to harbor registry)
+
+
+Note về việc tạo habor registry
+1. Bảo mật tuyệt đối & Cô lập Hạ tầng (Air-gapped & Security)
+Mạng nội bộ (Private VPC/On-Premises): Lưu trữ hoàn toàn bên trong tường lửa công ty. Điều này cho phép triển khai trong môi trường Air-gapped (cô lập hoàn toàn với Internet), loại bỏ nguy cơ lộ mã nguồn thương mại.
+Chính sách chặn Deploy (Gatekeeping): Tự động quét lỗ hổng (CVE). Nếu phát hiện lỗi bảo mật mức độ High/Critical, hệ thống sẽ tự động khóa, không cho phép kéo (pull) image đó vào môi trường Production.
+Ký số phần mềm (Image Signing): Tích hợp công cụ ký số (Notary/Cosign) để đảm bảo tính toàn vẹn của image, tránh rủi ro bị chèn mã độc trong chuỗi cung ứng (Software Supply Chain).
+2. Quản lý Định danh & Phân quyền Tập trung (IAM/RBAC)
+Tích hợp SSO doanh nghiệp: Kết nối trực tiếp với hệ thống quản lý định danh hiện có của công ty như LDAP, Active Directory, Okta, Keycloak hoặc Azure AD.
+Phân quyền phân cấp sâu: Quản lý quyền hạn chi tiết đến từng nhóm dự án, từng người dùng hoặc Service Account theo đúng nguyên tắc đặc quyền tối thiểu (Least Privilege).
+3. Hiệu năng Cao & Kiểm soát Chi phí Băng thông
+Không bị hạn chế lượt pull (Rate Limit): Loại bỏ hoàn toàn rủi ro hệ thống CI/CD hoặc cluster Kubernetes bị tắc nghẽn do dính giới hạn lượt kéo từ các Cloud Registry công cộng.
+Tốc độ deploy vượt trội: Kéo image qua mạng LAN nội bộ hoặc đường truyền riêng (Direct Connect/VPC Peering) nhanh hơn gấp nhiều lần so với tải qua Internet.
+Tối ưu chi phí Egress: Giảm thiểu đáng kể chi phí băng thông đường truyền ra ngoài (Data Egress) khi hệ thống kéo hàng nghìn container mới mỗi ngày.
+4. Quản trị Dữ liệu & Tuân thủ Pháp lý (Compliance & Governance)
+Đồng bộ đa vùng (Geo-replication): Tự động sao chép image giữa các Trung tâm dữ liệu (Datacenter) ở nhiều khu vực địa lý để phục vụ phương án dự phòng sự cố (Disaster Recovery).
+Quản lý vòng đời (Lifecycle & Retention): Cấu hình tự động dọn dẹp các tag rác/build thử nghiệm để tiết kiệm dung lượng, đồng thời bật chế độ Immutable Tags để ngăn chặn việc ghi đè lên các phiên bản đã phát hành.
+Đáp ứng chuẩn bảo mật: Bắt buộc đối với các ngành ngân hàng, tài chính, y tế để đáp ứng các chứng nhận quốc tế (PCI-DSS, ISO 27001, SOC 2, HIPAA) và luật lưu trữ dữ liệu nội địa.
+
+
+
+grafana: 
+admin 
+Group-hcm-01
+
+http://192.168.6.35:31650/login (vô qua thằng nào cũng được do mở nodeport)
+
+
+
+tại sao lại cần bastion host thay vì đã có VPN? hay cả 2 bổ trợ nhau ? 
+Vì sao nhiều team/tổ chức vẫn dùng Bastion riêng dù đã có VPN
+1. Giảm diện tấn công của kubeconfig admin
+Kubeconfig với quyền admin cluster là "chìa khoá vương quốc" — nếu nó nằm rải rác trên laptop cá nhân của từng người (dễ bị mất, bị malware, bị đồng nghiệp mượn máy), so với nằm tập trung trên 1 máy bastion được harden riêng (không cài phần mềm linh tinh, chỉ dùng để admin), rủi ro rò rỉ thấp hơn hẳn.
+2. Thu hồi quyền tập trung, dễ audit
+Nếu 1 người nghỉ việc/mất laptop, với VPN + kubeconfig cá nhân, bạn phải: thu hồi VPN cert và đảm bảo kubeconfig trên máy họ không còn dùng được (xoay ServiceAccount token, revoke cert K8s...). Với Bastion, chỉ cần khoá tài khoản SSH vào Bastion — kubeconfig admin chưa từng rời khỏi máy đó, không tồn tại bản copy trôi nổi ở đâu khác.
+3. Log tập trung "ai đã chạy lệnh gì"
+Bastion thường bật auditd/session recording — mọi kubectl delete, kubectl apply đều có log tại 1 điểm duy nhất. Với laptop cá nhân, bạn phải tin tưởng client-side logging (dễ bị tắt/xoá), khó audit tập trung.
+4. Môi trường công cụ nhất quán
+Bastion cài sẵn đúng version kubectl, helm, cloud CLI, script nội bộ — cả team dùng chung 1 môi trường, tránh tình trạng "trên máy tôi chạy được" do khác version.
+
+
+
+
+Luồng di chuyển của dữ liệu trong thực tế
+Client gửi request HTTP tới Kong Gateway.
+Kong (Tầng 7) xác thực token, kiểm tra CORS, chọn service đích phù hợp.
+Kong chuyển tiếp request đến tên miền hoặc địa chỉ ClusterIP của Backend Service.
+ClusterIP (Tầng 4) nhận dữ liệu và điều hướng xuống một trong các Pod thực tế đang chạy backend.
+
+Không, Kong trong file YAML này không phải là Kubernetes Ingress Controller.
+Đây là cấu hình cho Kong Standalone API Gateway chạy ở chế độ DB-less (Declarative mode).
+Lý do cụ thể:
+Nguồn cấu hình tĩnh: Kong đọc cấu hình từ file /kong/kong.yml (KONG_DECLARATIVE_CONFIG) được mount từ ConfigMap kong-config. Nó không lắng nghe hay tự động cập nhật từ các resource kind: Ingress trong Kubernetes.
+Thiếu Controller process: Manifest chỉ chạy container kong:3.4 (gateway engine). Nó không có container kong-ingress-controller đi kèm để giao tiếp với Kubernetes API Server.
+Vai trò thực tế: Nó chỉ hoạt động như một Reverse Proxy / API Gateway truyền thống. Traffic đi vào Service kong sẽ được xử lý theo các rules định nghĩa sẵn trong file YAML nội bộ (kong.yml).
+
+
+1. Định tuyến ứng dụng thông minh (Layer 7 Routing)
+ClusterIP: Mỗi IP/Service gắn cố định với một Port (ví dụ: 10.96.0.1:8000). Bạn không thể phân chia luồng dữ liệu dựa trên đường dẫn URL.
+Kong:
+Path-based routing: Định tuyến chính xác theo đường dẫn, ví dụ: /api/v1/users gửi tới User Service, /api/v1/orders gửi tới Order Service.
+Header/Method-based routing: Chuyển hướng request dựa vào HTTP Method (GET, POST), Domain (Host: api.example.com), hoặc Header đặc thù.
+2. Bảo mật & Xác thực tập trung (Centralized Authentication)
+ClusterIP: Không có khả năng kiểm tra token hay xác thực người dùng. Mọi request gửi đến ClusterIP đều được chuyển thẳng vào Pod backend (buộc từng backend service phải tự code phần Auth).
+Kong: Giúp tách rời logic Auth ra khỏi Backend code (Offloading). Bạn chỉ cần gắn Plugin vào Kong:
+Xác thực: Hỗ trợ sẵn JWT, Key-Auth, OAuth2, Basic-Auth, OIDC.
+Phân quyền & Chống tấn công: IP Restriction (chỉ cho phép IP chỉ định), Bot Detection, CORS (quản lý Cross-Origin tập trung).
+3. Quản lý & Điều tiết lưu lượng (Traffic Control)
+ClusterIP: Cân bằng tải vòng tròn (Round-Robin) đơn giản, nếu request ồ ạt tràn vào thì backend sẽ nổ/OOM.
+Kong:
+Rate Limiting: Giới hạn số lượng request (ví dụ: tối đa 100 req/phút cho user thường, 1000 req/phút cho user VIP).
+Request Size Limiting: Chặn các request gửi file quá lớn gây quá tải hệ thống.
+Circuit Breaker & Health Check: Tự ngắt kết nối tới service đang hỏng để tránh hiệu ứng domino sụp đổ toàn bộ hệ thống.
+4. Giám sát & Đo lường chi tiết (Observability)
+ClusterIP: Chỉ đo được số lượng byte/packet truyền qua mạng ở mức OS/CNI.
+Kong: Cung cấp bức tranh toàn cảnh về mặt ứng dụng:
+Metrics: Xuất dữ liệu sang Prometheus, Datadog, StatsD để vẽ biểu đồ chi tiết về HTTP Status code (2xx, 4xx, 5xx), QPS (Queries Per Second).
+Latency breakdown: Biết chính xác độ trễ nằm ở đâu: do Kong xử lý (Kong Latency) hay do Backend xử lý chậm (Upstream Latency).
+Tracing: Tích hợp OpenTelemetry, Zipkin để theo dõi hành trình của request qua chuỗi microservices.
+5. Biến đổi dữ liệu (Data Transformation)
+ClusterIP: Truyền nguyên bản gói tin TCP.
+Kong: Cho phép can thiệp và sửa đổi HTTP request/response trên đường đi:
+Tự động thêm/sửa/xóa HTTP Headers (ví dụ: thêm X-User-ID sau khi decode JWT thành công để gửi xuống backend).
+Rewriting Path (ví dụ: client gọi /v1/service/abc, Kong tự bỏ phần /v1/service rồi mới đẩy xuống backend).
+6. Tăng hiệu năng Backend (Caching & TLS Termination)
+Proxy Cache: Kong có thể lưu đệm (cache) câu trả lời của các API thường xuyên được truy vấn (như danh sách sản phẩm, bảng giá...). Request tiếp theo sẽ được Kong trả về ngay lập tức mà không cần chạm vào Pod backend, giảm tải đáng kể cho DB và CPU của backend.
+TLS/SSL Termination: Giải mã HTTPS ngay tại Kong, giảm bớt tải mã hóa/giải mã cho các microservice phía sau.
+
+
+ClusterIP đóng vai trò là "cái ống dẫn nước" nội bộ trong cluster.
+Kong đóng vai trò là "nhà máy lọc và điều tiết nước" đứng ở đầu nguồn.
+
+
+Chúc mừng bạn, phía pfSense và DNS Resolver đã cấu hình thành công 100%! Lệnh đầu tiên xác nhận pfSense đã phân giải chính xác harbor.cmc-cloud-hcm1.cloud về 192.168.6.64.
+Lệnh thứ hai thất bại do hệ điều hành macOS chưa áp dụng IP DNS 10.10.1.1 làm DNS mặc định mà vẫn dùng 8.8.8.8. Hãy xử lý triệt để bằng các cách sau:
+1. Bổ sung Push Search Domain trên pfSense
+Để macOS tự động chuyển các truy vấn thuộc domain này về pfSense:
+Vào VPN > OpenVPN > Servers > Chọn Edit Server.
+Cuộn xuống khung Custom options (trong mục Advanced Configuration), thêm dòng lệnh sau vào dưới cùng:
+Plaintext
+push "dhcp-option DOMAIN-SEARCH cmc-cloud-hcm1.cloud";
+Nhấn Save và Apply Changes.
+2. Điều chỉnh cài đặt phần mềm OpenVPN trên macOS
+Nếu dùng Tunnelblick:
+Mở Tunnelblick > Chọn VPN Details...
+Chọn Profile VPN của bạn ở cột bên trái > Chuyển sang tab Settings.
+Tại mục Set DNS Servers, chọn Set nameservers (hoặc Set nameservers (3.0b10)).
+Nếu dùng OpenVPN Connect:
+Mở Settings của ứng dụng OpenVPN Connect.
+Tìm mục DNS Fallback (nếu có) và tắt nó đi, hoặc đảm bảo đã bật Seamless Tunnel.
+3. Kiểm tra lại sau khi Reconnect
+Ngắt kết nối VPN hoàn toàn, bật lại và chạy lệnh kiểm tra:
+Bash
+nslookup harbor.cmc-cloud-hcm1.cloud
+Lúc này dòng Server sẽ tự động nhận 10.10.1.1 và trả về IP 192.168.6.64.
+
+cmc-cloud-1 (domain cho production có cặp cert do Cloudflare quản lí) 
+harbor.cmc-cloud là do Lets encrypt tạo, các máy ubuntu đều có nơi lưu danh sách các CA chứng thực 
+
+
+
+PV nằm ở giữa: dữ liệu lớn, gắn với 1 pod, cần I/O tốc độ cao dạng filesystem thật.
+
+
+Áp dụng PV cho grafana lưu trữ 
+
+
+Thay vì request nào cũng phải đi qua full-flow: Client -> Kong -> Backend -> Database -> Kong -> Client, luồng dữ liệu sẽ thay đổi như sau:
+Lần gọi đầu tiên (Cache Miss):
+Client gửi request tới Kong.
+Kong thấy chưa có cache → Chuyển request xuống Backend xử lý.
+Backend trả kết quả → Kong lưu kết quả này vào Redis và trả cho Client.
+Các lần gọi tiếp theo trong 60 giây (Cache Hit):
+Client gửi request tương tự.
+Kong phát hiện dữ liệu đã có sẵn trong Redis → Lấy ra trả về luôn cho Client.
+Backend và Database hoàn toàn không cần làm gì.
+Sau 60 giây (cache_ttl: 60):
+Dữ liệu trong Redis hết hạn và tự xóa. Request tiếp theo sẽ lặp lại từ Bước 1 để lấy dữ liệu mới nhất.
+
+
+http://192.168.6.24:32305/d/k8s-full-monitoring/f11227a?orgId=1&from=now-6h&to=now&timezone=browser&var-datasource=dfywpdjunfpxce&var-DS_LOKI=efywqbotohekge&var-namespace=banking&var-node=$__all&var-pod=$__all&refresh=30s
+
+load balancer 
+- trỏ về pod ( đánh label đúng cho pod)
+- Dispatch NodePort" trong sơ đồ = bước ELB gửi traffic tới 1 trong các NodePort đang mở trên các worker node. Đây là internal implementation detail, không thể loại bỏ hoàn toàn — kể cả service LoadBalancer bạn đang thấy (haproxy-ingress-loadbalancer, port 31381►80, 32149►443) chính nó cũng đang dùng NodePort ở phía sau (31381, 32149 chính là NodePort tự sinh của service LoadBalancer đó

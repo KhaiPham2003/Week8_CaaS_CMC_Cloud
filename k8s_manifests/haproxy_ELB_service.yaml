@@ -6,13 +6,14 @@ metadata:
 spec:
   type: LoadBalancer
   selector:
+    app.kubernetes.io/instance: haproxy-ingress
     app.kubernetes.io/name: kubernetes-ingress
   ports:
     - name: http
       port: 80
-      targetPort: 8080 # ← port thật pod đang bind, không phải 80
+      targetPort: 8080 # ← port thật pod ingress-controller đang bind, không phải 80
       protocol: TCP
     - name: https
       port: 443
-      targetPort: 8443 # ← port thật pod đang bind, không phải 443
+      targetPort: 8443 # ← port thật pod đingress-controller ang bind, không phải 443
       protocol: TCP

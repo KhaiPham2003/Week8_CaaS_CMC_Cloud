@@ -51,6 +51,8 @@ spec:
               name: proxy
             - containerPort: 8001
               name: admin
+
+          ## mount với file config trong folder kong/kong.yml
           volumeMounts:
             - name: kong-config
               mountPath: /kong

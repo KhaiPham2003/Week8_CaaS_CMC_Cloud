@@ -25,7 +25,7 @@ spec:
 
       containers:
         - name: frontend
-          image: harbor.cmc-cloud-hcm1.cloud/banking/frontend:v1
+          image: harbor.cmc-cloud-hcm1.cloud/banking/frontend:latest
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

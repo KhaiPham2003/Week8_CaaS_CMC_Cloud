@@ -1,0 +1,83 @@
+# ============================================================
+# values.yaml cho Helm release "grafana" (chart: grafana/grafana)
+# namespace: monitoring
+#
+# File này là NGUỒN SỰ THẬT DUY NHẤT (source of truth) cho cấu
+# hình Grafana. Từ giờ luôn dùng đúng file này khi upgrade:
+#
+#   helm upgrade grafana grafana/grafana -n monitoring -f values.yaml
+#
+# TUYỆT ĐỐI KHÔNG dùng `-f` với 1 file chỉ chứa vài field lẻ
+# (như nodeSelector/tolerations riêng) — `-f` sẽ THAY THẾ TOÀN
+# BỘ values, xoá mất mọi field không có trong file đó (đây
+# chính xác là nguyên nhân làm mất persistence lần trước).
+#
+# Nếu chỉ muốn đổi 1-2 field nhỏ, dùng:
+#   helm upgrade grafana grafana/grafana -n monitoring \
+#     --reuse-values --set <key>=<value>
+# rồi nhớ đồng bộ lại thay đổi đó vào file values.yaml này để
+# không bị lệch giữa "state thật trên cluster" và "file trong git".
+# ============================================================
+
+# --------------------------------------------------------------
+# PERSISTENCE — PVC lưu dữ liệu Grafana (dashboards, users, config)
+# --------------------------------------------------------------
+persistence:
+  enabled: true
+  type: pvc
+  storageClassName: highio
+  accessModes:
+    - ReadWriteOnce
+  size: 5Gi
+  # Đặt tên cố định cho PVC, KHÔNG để Helm tự sinh tên theo release
+  # revision — giúp PVC không bao giờ bị đổi tên/mất liên kết dù
+  # bạn có upgrade/rollback release bao nhiêu lần.
+  existingClaim: "" # để trống = Helm tự tạo PVC tên "grafana"
+  finalizers:
+    - kubernetes.io/pvc-protection # chặn xoá nhầm PVC khi còn pod đang dùng
+
+# --------------------------------------------------------------
+# NODE PINNING — chỉ chạy trên node group monitoring đã taint riêng
+# --------------------------------------------------------------
+nodeSelector:
+  cmccloud-k8s-nodegroups: nodegroup-monitoring-hcm1-prod
+
+tolerations:
+  - key: "dedicated"
+    operator: "Equal"
+    value: "monitoring"
+    effect: "NoSchedule"
+
+# --------------------------------------------------------------
+# SERVICE — expose Grafana UI
+# --------------------------------------------------------------
+service:
+  type: NodePort
+  port: 80
+
+# --------------------------------------------------------------
+# RESOURCES — tránh Grafana chiếm hết tài nguyên node monitoring
+# (đúng tiêu chí "Quản lý tài nguyên" Ngày 4 của môn học)
+# --------------------------------------------------------------
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# --------------------------------------------------------------
+# Giữ đúng 1 replica — vì PVC là ReadWriteOnce, chỉ 1 pod mount
+# được cùng lúc. KHÔNG tăng replicaCount nếu chưa đổi sang
+# storage kiểu RWX hoặc external DB cho Grafana.
+# --------------------------------------------------------------
+replicas: 1
+
+# --------------------------------------------------------------
+# Chiến lược rollout: recreate, không phải rolling update.
+# Vì chỉ 1 replica + PVC RWO, pod cũ PHẢI bị xoá hẳn trước khi
+# pod mới được tạo (pod mới không thể mount PVC nếu pod cũ vẫn
+# đang giữ), nếu để mặc định RollingUpdate có thể bị kẹt Pending
+# chờ volume detach.
+# --------------------------------------------------------------
