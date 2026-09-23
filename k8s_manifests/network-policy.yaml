@@ -1,0 +1,62 @@
+---
+# 1. Chặn toàn bộ kết nối đi VÀO (Ingress) từ bên ngoài namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-external-ingress
+  namespace: banking
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+
+---
+# 2. Cho phép các Pod TRONG CÙNG namespace banking giao tiếp với nhau
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-intra-namespace
+  namespace: banking
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector: {}
+
+---
+# 3. Cho phép HAProxy Ingress (từ ngoài) gọi vào Frontend và Kong
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-gateway
+  namespace: banking
+spec:
+  podSelector:
+    matchExpressions:
+      - {key: app, operator: In, values: [kong, frontend]}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-controller
+
+---
+# 4. Cho phép Prometheus đâm thủng tường lửa để lấy Metrics
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape
+  namespace: banking
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cmc-monitoring
