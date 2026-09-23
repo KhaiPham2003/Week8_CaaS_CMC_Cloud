@@ -7,18 +7,19 @@ on:
     branches: [main]
 
 env:
-  HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY }} #https://harbor.cmc-cloud-hcm1.cloud/
-  HARBOR_PROJECT: ${{vars.HARBOR_PROJECT}} # banking
+  HARBOR_REGISTRY: ${{ vars.HARBOR_REGISTRY }}
+  HARBOR_PROJECT: ${{ vars.HARBOR_PROJECT }}
+
 jobs:
   # ---------------------------------------------------------------------
-  # 1) Detect which services actually changed so we don't rebuild all 6
-  #    images on every push.
+  # 1) Detect changes (Code & K8s Manifests)
   # ---------------------------------------------------------------------
   detect:
-    runs-on: ubuntu-latest # pure git diff, no registry access needed here
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      k8s-shared: ${{ steps.filter.outputs.k8s-shared }} # FIX 1: Export output k8s-shared
     steps:
       - uses: actions/checkout@v4
 
@@ -28,50 +29,56 @@ jobs:
           filters: |
             auth-service:
               - 'services/auth-service/**'
+              - 'k8s_manifests/auth-service.yaml'
             account-service:
               - 'services/account-service/**'
+              - 'k8s_manifests/account-service.yaml'
             transfer-service:
               - 'services/transfer-service/**'
+              - 'k8s_manifests/transfer-service.yaml'
+              - 'k8s_manifests/hpa_transfer.yaml'
             game-service:
               - 'services/game-service/**'
+              - 'k8s_manifests/game-plinko.yaml'
             notification-service:
               - 'services/notification-service/**'
+              - 'k8s_manifests/notification-service.yaml'
             frontend:
               - 'frontend/**'
-            # TODO: confirm whether services actually import shared code from
-            # repo root (their Dockerfile build context is ".", not their own
-            # folder). If they do, add those root paths here so a shared-code
-            # change rebuilds every service, e.g.:
-            # shared:
-            #   - 'shared/**'
-            #   - 'requirements.txt'
+              - 'k8s_manifests/frontend.yaml'
+            k8s-shared:
+              - 'k8s_manifests/ingress.yaml'
+              - 'k8s_manifests/secret.yaml'
+              - 'k8s_manifests/kong*.yaml'
+              - 'k8s_manifests/haproxy*.yaml'
+              - 'k8s_manifests/namespace.yaml'
 
       - name: Build matrix of changed services
         id: set-matrix
         run: |
           services=()
-          [[ "${{ steps.filter.outputs.auth-service }}" == "true" ]] && services+=("auth-service")
-          [[ "${{ steps.filter.outputs.account-service }}" == "true" ]] && services+=("account-service")
-          [[ "${{ steps.filter.outputs.transfer-service }}" == "true" ]] && services+=("transfer-service")
-          [[ "${{ steps.filter.outputs.game-service }}" == "true" ]] && services+=("game-service")
-          [[ "${{ steps.filter.outputs.notification-service }}" == "true" ]] && services+=("notification-service")
+          IS_SHARED="${{ steps.filter.outputs.k8s-shared }}"
+
+          if [[ "$IS_SHARED" == "true" || "${{ steps.filter.outputs.auth-service }}" == "true" ]]; then services+=("auth-service"); fi
+          if [[ "$IS_SHARED" == "true" || "${{ steps.filter.outputs.account-service }}" == "true" ]]; then services+=("account-service"); fi
+          if [[ "$IS_SHARED" == "true" || "${{ steps.filter.outputs.transfer-service }}" == "true" ]]; then services+=("transfer-service"); fi
+          if [[ "$IS_SHARED" == "true" || "${{ steps.filter.outputs.game-service }}" == "true" ]]; then services+=("game-service"); fi
+          if [[ "$IS_SHARED" == "true" || "${{ steps.filter.outputs.notification-service }}" == "true" ]]; then services+=("notification-service"); fi
 
           if [ ${#services[@]} -eq 0 ]; then
             echo "matrix=[]" >> "$GITHUB_OUTPUT"
           else
-            json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c .)
+            json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s -c . | jq -c 'unique')
             echo "matrix=$json" >> "$GITHUB_OUTPUT"
           fi
 
   # ---------------------------------------------------------------------
-  # 2) Build & push only the services that changed.
-  #    Dockerfile: services/<name>/Dockerfile, build context: repo root
-  #    (matches the "context: ." used in docker-compose.yml).
+  # 2) Build & push backend microservices
   # ---------------------------------------------------------------------
   build-services:
     needs: detect
     if: needs.detect.outputs.matrix != '[]'
-    runs-on: self-hosted # must reach Harbor on the internal network
+    runs-on: self-hosted
     strategy:
       matrix:
         service: ${{ fromJson(needs.detect.outputs.matrix) }}
@@ -103,11 +110,11 @@ jobs:
           cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ matrix.service }}:buildcache,mode=max
 
   # ---------------------------------------------------------------------
-  # 3) Frontend has its own build context (./frontend), handled separately.
+  # 3) Build & push frontend
   # ---------------------------------------------------------------------
   build-frontend:
     needs: detect
-    if: needs.detect.outputs.frontend == 'true'
+    if: needs.detect.outputs.frontend == 'true' || needs.detect.outputs.k8s-shared == 'true'
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
@@ -129,11 +136,14 @@ jobs:
           context: ./frontend
           push: true
           tags: |
-            ${{ vars.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
+            ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:latest
             ${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:${{ steps.vars.outputs.sha_short }}
-          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache
-          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/banking/frontend:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:buildcache
+          cache-to: type=registry,ref=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:buildcache,mode=max
 
+  # ---------------------------------------------------------------------
+  # 4) Auto-Deploy to K8s
+  # ---------------------------------------------------------------------
   deploy-to-k8s:
     name: Auto-Deploy to K8s
     needs:
@@ -142,10 +152,10 @@ jobs:
       - build-frontend
     if: |
       always() &&
-      (needs.detect.outputs.matrix != '[]' || needs.detect.outputs.frontend == 'true') &&
+      (needs.detect.outputs.matrix != '[]' || needs.detect.outputs.frontend == 'true' || needs.detect.outputs.k8s-shared == 'true') &&
       !contains(join(needs.*.result, ','), 'failure') &&
       !contains(join(needs.*.result, ','), 'cancelled')
-    runs-on: self-hosted # runner này phải có sẵn kubeconfig/context trỏ tới cluster kubernetes-prod-hcm1
+    runs-on: self-hosted
     env:
       NAMESPACE: banking
     steps:
@@ -155,15 +165,35 @@ jobs:
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy changed services
+      - name: Deploy changed backend services
         if: needs.detect.outputs.matrix != '[]'
         run: |
           echo '${{ needs.detect.outputs.matrix }}' | jq -r '.[]' | while read -r svc; do
             echo "Deploying $svc -> tag ${{ steps.vars.outputs.sha_short }}"
+            
+            MANIFEST_FILE="k8s_manifests/${svc}.yaml"
+            if [ "$svc" == "game-service" ]; then
+              MANIFEST_FILE="k8s_manifests/game-plinko.yaml"
+            fi
+
+            if [ -f "$MANIFEST_FILE" ]; then
+              kubectl apply -f "$MANIFEST_FILE" -n "${{ env.NAMESPACE }}"
+            fi
+
             kubectl set image deployment/"$svc" "$svc"="${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${svc}:${{ steps.vars.outputs.sha_short }}" -n "${{ env.NAMESPACE }}"
           done
 
-      - name: Deploy frontend
-        if: needs.detect.outputs.frontend == 'true'
+      - name: Deploy shared K8s manifests
+        if: needs.detect.outputs.k8s-shared == 'true'
         run: |
+          kubectl apply -f k8s_manifests/ingress.yaml -n "${{ env.NAMESPACE }}" --ignore-not-found
+          kubectl apply -f k8s_manifests/secret.yaml -n "${{ env.NAMESPACE }}" --ignore-not-found
+          kubectl apply -f k8s_manifests/kong-configmap.yaml -n "${{ env.NAMESPACE }}" --ignore-not-found
+
+      - name: Deploy frontend
+        if: needs.detect.outputs.frontend == 'true' || needs.detect.outputs.k8s-shared == 'true'
+        run: |
+          if [ -f "k8s_manifests/frontend.yaml" ]; then
+            kubectl apply -f k8s_manifests/frontend.yaml -n "${{ env.NAMESPACE }}"
+          fi
           kubectl set image deployment/frontend frontend="${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/frontend:${{ steps.vars.outputs.sha_short }}" -n "${{ env.NAMESPACE }}"
