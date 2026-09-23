@@ -200,6 +200,7 @@ export default function Dashboard({ onLogout, onNavigate }) {
                 step)
               </li>
               <li>Caolegiaphu</li>
+              <li>GROUP-HCM-1</li>
             </ul>
           </Card>
         </div>
